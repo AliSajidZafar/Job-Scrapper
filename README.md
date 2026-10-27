@@ -108,3 +108,27 @@ pg_cron / Edge Functions **cannot run Playwright** (Deno, short-lived, no
 Chromium) — they can only *trigger* a host that can. Simplest: run
 `npm run scrape` once each morning via Windows Task Scheduler (dev) or cron on
 whatever box hosts the scraper (prod).
+
+### Is n8n a fit? (replacing the scheduler problem)
+
+**Yes for scheduling/orchestration, with one condition.** n8n is a good
+replacement for the *trigger + orchestration + alerting* role, but it does **not**
+remove the need for a real Node + Chromium runtime:
+
+- **Self-hosted n8n (Docker) — works.** Schedule Trigger (cron) → **Execute
+  Command** node running `npm run scrape`, as long as Chromium is installed in
+  that container/host (`npx playwright install --with-deps chromium`, or a base
+  image that bundles it). Its Error Trigger + Discord/Slack/Email nodes replace
+  the custom `ALERT_WEBHOOK_URL`, and execution history gives you run logs.
+- **n8n Cloud — won't run the scrape.** No Execute Command and no custom
+  binaries, so Playwright can't launch there. You'd use Cloud only to *trigger*
+  a scraper you host elsewhere (Schedule Trigger → HTTP Request to a small
+  scraper endpoint you expose).
+- **Don't use the Code node for Playwright** — it runs in a sandbox with no
+  browser binaries.
+
+So n8n fixes the "what triggers it, retries, and alerts" problem cleanly; the
+scraper step still has to execute on a host that has the browser (the
+self-hosted n8n box itself, or a separate service it calls). For a single daily
+run it's heavier than Task Scheduler/cron, but worth it if you already run n8n
+or want retries + failure notifications without wiring them yourself.
