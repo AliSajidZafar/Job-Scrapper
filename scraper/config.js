@@ -26,7 +26,8 @@ module.exports = {
 
   // Safety / pacing. Keep these conservative — a dedicated secondary account only.
   limits: {
-    maxJobsPerStack: 200, // hard cap per stack per run
+    maxJobsPerStack: 25, // hard cap per stack per run (raise toward ~200 for production)
+    fetchApplicantCounts: true, // visit each job's detail page for applicant count (slower)
     pageDelayMs: [2000, 5000], // random delay between page loads [min, max]
     stackDelayMs: [5000, 10000], // random delay between stacks [min, max]
   },
