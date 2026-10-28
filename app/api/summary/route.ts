@@ -65,6 +65,7 @@ export async function GET() {
     totals: {
       open_roles: stacks.reduce((n, s) => n + (s.open_roles ?? 0), 0),
       captured: totalCaptured,
+      total_applicants: allSum,
       avg_applicants: allN ? Math.round(allSum / allN) : null,
     },
     stacks,

@@ -164,7 +164,7 @@ function SummarySection({ summary, loading }: { summary: SummaryData | null; loa
       <div className="mb-3 flex items-baseline justify-between">
         <h2 className="text-sm font-semibold uppercase tracking-wide text-muted">Market at a glance</h2>
         {summary && (
-          <div className="flex gap-4 text-xs text-sub">
+          <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-sub">
             <span>
               <span className="tabular-nums font-medium text-ink">
                 {summary.totals.open_roles.toLocaleString()}
@@ -173,6 +173,12 @@ function SummarySection({ summary, loading }: { summary: SummaryData | null; loa
             </span>
             <span>
               <span className="tabular-nums font-medium text-ink">{summary.totals.captured}</span> tracked
+            </span>
+            <span>
+              <span className="tabular-nums font-medium text-ink">
+                {summary.totals.total_applicants.toLocaleString()}
+              </span>{" "}
+              total applicants
             </span>
             <span>
               <span className="tabular-nums font-medium text-ink">
