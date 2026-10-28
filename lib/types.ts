@@ -71,7 +71,12 @@ export interface StackSummary {
 }
 
 export interface SummaryData {
-  totals: { open_roles: number; captured: number; avg_applicants: number | null };
+  totals: {
+    open_roles: number;
+    captured: number;
+    total_applicants: number; // sum of applicant counts across all captured jobs
+    avg_applicants: number | null;
+  };
   stacks: StackSummary[];
 }
 
