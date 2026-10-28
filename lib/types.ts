@@ -4,6 +4,16 @@
 export const STACKS = ["SAP", "Salesforce", "MERN", ".NET", "Java"] as const;
 export type Stack = (typeof STACKS)[number];
 
+// Stack -> CSS custom property holding its (theme-aware) categorical color.
+// Colors are the dataviz reference's first five validated slots, in order.
+export const STACK_COLOR_VAR: Record<Stack, string> = {
+  SAP: "--s-sap",
+  Salesforce: "--s-salesforce",
+  MERN: "--s-mern",
+  ".NET": "--s-net",
+  Java: "--s-java",
+};
+
 export type JobType = "contract" | "full_time";
 
 export interface Job {
@@ -49,6 +59,20 @@ export interface ScrapeRun {
   jobs_found: number;
   status: "success" | "partial" | "failed";
   error_message: string | null;
+}
+
+// Per-stack headline numbers for the "Market at a glance" section.
+export interface StackSummary {
+  stack: Stack;
+  open_roles: number | null; // LinkedIn's reported result total (demand)
+  captured: number; // jobs we scraped in detail for this stack
+  avg_applicants: number | null; // mean applicants over the captured sample
+  max_applicants: number | null;
+}
+
+export interface SummaryData {
+  totals: { open_roles: number; captured: number; avg_applicants: number | null };
+  stacks: StackSummary[];
 }
 
 // Shape returned by every dashboard API route so the UI can tell

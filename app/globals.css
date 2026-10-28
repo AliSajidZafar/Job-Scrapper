@@ -1,26 +1,114 @@
 @import "tailwindcss";
 
+/* ------------------------------------------------------------------ *
+ * Design tokens. Colors come from the dataviz reference palette so the
+ * whole app (chrome + charts) is one validated, colorblind-safe system.
+ * Dark values are re-declared under both the OS media query (unless the
+ * viewer forced light) and the data-theme="dark" toggle, so the toggle
+ * wins either way.
+ * ------------------------------------------------------------------ */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  color-scheme: light;
+  --plane: #f7f7f5; /* page background */
+  --card: #ffffff; /* raised card */
+  --surface: #fcfcfb; /* chart surface */
+  --ink: #0b0b0b;
+  --sub: #52514e;
+  --muted: #8a8880;
+  --line: #e7e6e0;
+  --grid: #e5e4dd;
+  --axis: #c7c6bd;
+  --brand: #17808d; /* Mavericks teal */
+  --brand-ink: #ffffff;
+  --brand-soft: #e3f3f5;
+  --good: #0a8f0a;
+  --warn: #b07f00;
+  --crit: #c93838;
+  /* categorical series (validated, in fixed order) */
+  --s-sap: #2a78d6;
+  --s-salesforce: #eb6834;
+  --s-mern: #1baf7a;
+  --s-net: #eda100;
+  --s-java: #e87ba4;
 }
 
 @media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --plane: #0c0c0c;
+    --card: #161615;
+    --surface: #1a1a19;
+    --ink: #f0efec;
+    --sub: #c3c2b7;
+    --muted: #8a8880;
+    --line: #2a2a28;
+    --grid: #2c2c2a;
+    --axis: #3a3a37;
+    --brand: #2eaab9;
+    --brand-ink: #06181b;
+    --brand-soft: #0f2f34;
+    --good: #0ca30c;
+    --warn: #fab219;
+    --crit: #e05555;
+    --s-sap: #3987e5;
+    --s-salesforce: #d95926;
+    --s-mern: #199e70;
+    --s-net: #c98500;
+    --s-java: #d55181;
   }
 }
 
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --plane: #0c0c0c;
+  --card: #161615;
+  --surface: #1a1a19;
+  --ink: #f0efec;
+  --sub: #c3c2b7;
+  --muted: #8a8880;
+  --line: #2a2a28;
+  --grid: #2c2c2a;
+  --axis: #3a3a37;
+  --brand: #2eaab9;
+  --brand-ink: #06181b;
+  --brand-soft: #0f2f34;
+  --good: #0ca30c;
+  --warn: #fab219;
+  --crit: #e05555;
+  --s-sap: #3987e5;
+  --s-salesforce: #d95926;
+  --s-mern: #199e70;
+  --s-net: #c98500;
+  --s-java: #d55181;
+}
+
+/* Expose tokens as Tailwind color utilities (bg-card, text-ink, border-line, …).
+   `inline` makes each utility read the live var, so dark mode just works. */
+@theme inline {
+  --color-plane: var(--plane);
+  --color-card: var(--card);
+  --color-surface: var(--surface);
+  --color-ink: var(--ink);
+  --color-sub: var(--sub);
+  --color-muted: var(--muted);
+  --color-line: var(--line);
+  --color-brand: var(--brand);
+  --color-brand-ink: var(--brand-ink);
+  --color-brand-soft: var(--brand-soft);
+  --color-good: var(--good);
+  --color-warn: var(--warn);
+  --color-crit: var(--crit);
+  --font-sans: var(--font-geist-sans), system-ui, sans-serif;
+}
+
+html {
+  scrollbar-gutter: stable;
+}
+
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--plane);
+  color: var(--ink);
+  font-family: var(--font-geist-sans), system-ui, -apple-system, "Segoe UI", sans-serif;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
 }
