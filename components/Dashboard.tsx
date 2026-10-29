@@ -8,6 +8,7 @@ import {
   type CompanyStackRow,
   type Job,
   type ScrapeRun,
+  type SessionUser,
   type Stack,
   type StackSummary,
   type SummaryData,
@@ -29,7 +30,7 @@ interface Filters {
 
 const EMPTY_FILTERS: Filters = { stacks: [], jobType: "", location: "", easyApply: "" };
 
-export function Dashboard() {
+export function Dashboard({ user }: { user: SessionUser | null }) {
   const [tab, setTab] = useState<Tab>("Trend");
   const [filters, setFilters] = useState<Filters>(EMPTY_FILTERS);
 
@@ -96,7 +97,10 @@ export function Dashboard() {
             </div>
           </div>
           <div className="flex items-center gap-3">
-            <StatusBadge configured={configured} status={status} />
+            <span className="hidden md:inline-flex">
+              <StatusBadge configured={configured} status={status} />
+            </span>
+            <AccountControls user={user} />
             <ThemeToggle />
           </div>
         </div>
@@ -233,6 +237,49 @@ function TileSkeleton() {
 }
 
 /* ----------------------------- chrome ------------------------------ */
+
+const ghostButton =
+  "inline-flex h-9 items-center gap-1.5 rounded-lg border border-line bg-card px-3 text-xs text-sub transition-colors hover:border-brand hover:text-ink";
+
+function AccountControls({ user }: { user: SessionUser | null }) {
+  if (!user) {
+    return (
+      <div className="flex items-center gap-2">
+        <a href="/login" className={ghostButton}>
+          Sign in
+        </a>
+        <a
+          href="/signup"
+          className="inline-flex h-9 items-center rounded-lg bg-brand px-3 text-xs font-medium text-brand-ink transition-opacity hover:opacity-90"
+        >
+          Create account
+        </a>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex items-center gap-2">
+      <span className="hidden max-w-36 truncate text-xs text-sub lg:inline" title={user.name}>
+        Hi, <span className="font-medium text-ink">{user.name.split(" ")[0]}</span>
+      </span>
+      {user.role === "admin" && (
+        <a href="/admin" title="Admin" className={ghostButton}>
+          <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <rect x="4" y="11" width="16" height="10" rx="2" />
+            <path d="M8 11V7a4 4 0 0 1 8 0v4" />
+          </svg>
+          <span className="hidden sm:inline">Admin</span>
+        </a>
+      )}
+      <form action="/api/auth/logout" method="post">
+        <button type="submit" className={ghostButton}>
+          Sign out
+        </button>
+      </form>
+    </div>
+  );
+}
 
 function StatusBadge({ configured, status }: { configured: boolean | null; status: ScrapeRun | null }) {
   if (configured === false) {
