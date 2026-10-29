@@ -16,6 +16,14 @@ export const STACK_COLOR_VAR: Record<Stack, string> = {
 
 export type JobType = "contract" | "full_time";
 
+// Signed-in visitor. "admin" comes only from Supabase app_metadata.role, which
+// users can't edit themselves; everyone who signs up is a "user".
+export type Role = "admin" | "user";
+export interface SessionUser {
+  name: string;
+  role: Role;
+}
+
 export interface Job {
   id: string;
   linkedin_job_id: string;
