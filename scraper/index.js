@@ -1,9 +1,9 @@
 // Scraper entry point. Runs every configured stack once, persists results,
 // and logs the run. Invoke with `npm run scrape`.
 //
-// Requires a LinkedIn session saved as Playwright storageState JSON. See the
-// README for how to capture one. Scraping LinkedIn violates their ToS — use a
-// dedicated secondary account only.
+// Runs as a LinkedIn guest by default (see config.session.useLogin). With
+// LINKEDIN_USE_LOGIN=true it reuses a session saved as Playwright storageState
+// JSON. Scraping LinkedIn violates their ToS — use a dedicated secondary account.
 
 require("dotenv").config({ path: ".env.local" });
 
@@ -31,16 +31,30 @@ async function sendAlert(message) {
   }
 }
 
+// Tell n8n how the run went (every run, success included). Never throws.
+async function reportRun(report) {
+  if (!config.reportWebhookUrl) return;
+  try {
+    await fetch(config.reportWebhookUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ...report, host: require("os").hostname(), at: new Date().toISOString() }),
+    });
+  } catch (e) {
+    console.error("Run report webhook failed:", e.message);
+  }
+}
+
 async function main() {
   const statePath = config.session.storageStatePath;
-  if (!fs.existsSync(statePath)) {
+  if (config.session.useLogin && !fs.existsSync(statePath)) {
     console.error(`No LinkedIn session at ${statePath}. See README → "Capture a session".`);
     process.exit(1);
   }
 
   const browser = await chromium.launch({ headless: true });
   const context = await browser.newContext({
-    storageState: statePath,
+    ...(config.session.useLogin ? { storageState: statePath } : {}),
     userAgent:
       "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36",
   });
@@ -88,6 +102,7 @@ async function main() {
 
   await logRun({ jobsFound: totalJobs, status, errorMessage: message });
   console.log(`\nRun ${status}: ${totalJobs} jobs across ${config.stacks.length} stacks.`);
+  await reportRun({ status, jobsFound: totalJobs, message });
 
   if (status !== "success") {
     await sendAlert(`Run ${status}: ${message}`);
@@ -98,6 +113,7 @@ async function main() {
 main().catch(async (err) => {
   console.error("Fatal:", err);
   await logRun({ jobsFound: 0, status: "failed", errorMessage: err.message });
+  await reportRun({ status: "failed", jobsFound: 0, message: `Fatal: ${err.message}` });
   await sendAlert(`Fatal: ${err.message}`);
   process.exit(1);
 });
