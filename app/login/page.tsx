@@ -16,17 +16,13 @@ export default async function LoginPage(props: PageProps<"/login">) {
 
   return (
     <AuthCard
-      title="Sign in"
-      subtitle="Welcome back. Sign in to your account."
+      title="Welcome back"
+      subtitle="Sign in to your Mavericks account."
       footer={
         <>
           New here?{" "}
-          <Link href="/signup" className="font-medium text-brand hover:underline">
+          <Link href="/signup" className="font-semibold text-brand hover:underline">
             Create an account
-          </Link>
-          <span className="mx-2">·</span>
-          <Link href="/" className="hover:text-ink hover:underline">
-            Back to the dashboard
           </Link>
         </>
       }
