@@ -17,9 +17,13 @@ const config = require("./config");
 
   await page.goto("https://www.linkedin.com/login");
   console.log("\n1. Log in to your SECONDARY LinkedIn account in the window that opened.");
-  console.log("2. Once you see your feed, come back here and press Enter.\n");
+  console.log("2. The session saves by itself once your feed loads (or press Enter here).\n");
 
-  await new Promise((resolve) => process.stdin.once("data", resolve));
+  // Save as soon as the feed is reached, so no terminal interaction is needed.
+  const onFeed = page.waitForURL(/linkedin\.com\/feed/, { timeout: 15 * 60 * 1000 });
+  const onEnter = new Promise((resolve) => process.stdin.once("data", resolve));
+  await Promise.race([onFeed, onEnter]);
+  await page.waitForTimeout(3000);
 
   await context.storageState({ path: outPath });
   console.log(`✓ Session saved to ${outPath}`);

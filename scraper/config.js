@@ -34,10 +34,19 @@ module.exports = {
 
   // Where the LinkedIn session lives. Playwright storageState JSON is preferred
   // over a bare cookie string: it survives token rotation better.
+  // useLogin is off by default: from a home connection LinkedIn serves the guest
+  // layout (which is what scrape.js parses) without any login, so no account is
+  // at risk. A login used from a server IP gets signed out by LinkedIn within
+  // minutes (seen 2026-10-30 on the VPS), so the scrape runs on the PC.
   session: {
+    useLogin: process.env.LINKEDIN_USE_LOGIN === "true",
     storageStatePath: process.env.LINKEDIN_STORAGE_STATE || "scraper/.linkedin-session.json",
   },
 
   // Optional failure webhook (Discord/Slack-compatible). Leave empty to disable.
   alertWebhookUrl: process.env.ALERT_WEBHOOK_URL || "",
+
+  // Optional run-report webhook (n8n). Receives every run's outcome as JSON so
+  // n8n can email on failures. Leave empty to disable.
+  reportWebhookUrl: process.env.SCRAPE_REPORT_URL || "",
 };

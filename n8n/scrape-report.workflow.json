@@ -1,0 +1,90 @@
+{
+  "id": "mviDailyScrape01",
+  "name": "Scrape run report",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "SCRAPE_REPORT_TOKEN",
+        "responseMode": "onReceived",
+        "options": {}
+      },
+      "id": "5d2f6a8e-1c41-4f0e-9b1a-0a1f3c7e9d01",
+      "name": "Scraper reports a run",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [0, 0],
+      "webhookId": "0b6c2c8e-7f0a-4e43-9a51-6d0f2b9e1c11"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "c1d4e5f6-3a7b-4c8d-9e0f-2c3d5e9a1f03",
+              "leftValue": "={{ $json.body.status }}",
+              "rightValue": "success",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "b7e8f9a0-4b8c-4d9e-af10-3d4e6fab2a04",
+      "name": "Succeeded?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [240, 0]
+    },
+    {
+      "parameters": {},
+      "id": "e1f2a3b4-5c9d-4eaf-b021-4e5f7abc3b05",
+      "name": "All good",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [480, -100]
+    },
+    {
+      "parameters": {
+        "fromEmail": "ALERT_EMAIL",
+        "toEmail": "ALERT_EMAIL",
+        "subject": "=⚠ Mavericks scraper: run {{ $json.body.status }}",
+        "emailFormat": "text",
+        "text": "=The daily LinkedIn scrape did not fully succeed.\n\nStatus: {{ $json.body.status }}\nJobs saved: {{ $json.body.jobsFound }}\nMessage: {{ $json.body.message }}\nComputer: {{ $json.body.host }}\nTime: {{ DateTime.fromISO($json.body.at).setZone('Asia/Karachi').toFormat('yyyy-LL-dd HH:mm') }} PKT\n\nRun history: https://jobs.mavericksunited.co/admin",
+        "options": {}
+      },
+      "id": "f3a4b5c6-6dae-4fb0-c132-5f6a8bcd4c06",
+      "name": "Email alert",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [480, 100]
+    }
+  ],
+  "connections": {
+    "Scraper reports a run": {
+      "main": [[{ "node": "Succeeded?", "type": "main", "index": 0 }]]
+    },
+    "Succeeded?": {
+      "main": [
+        [{ "node": "All good", "type": "main", "index": 0 }],
+        [{ "node": "Email alert", "type": "main", "index": 0 }]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "Asia/Karachi"
+  },
+  "active": false,
+  "pinData": {}
+}
