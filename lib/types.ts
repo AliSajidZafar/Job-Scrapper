@@ -76,6 +76,34 @@ export interface StackSummary {
   captured: number; // jobs we scraped in detail for this stack
   avg_applicants: number | null; // mean applicants over the captured sample
   max_applicants: number | null;
+  // Movers: open roles vs the previous scrape day and vs ~a week earlier.
+  prev_day: string | null; // ISO date of the comparison day
+  prev_open_roles: number | null;
+  change_pct: number | null; // vs prev_day
+  change_week_pct: number | null; // vs the latest day at least 7 days back
+}
+
+// A job whose applicant count grew between two scrape runs.
+export interface FastJob {
+  id: string;
+  linkedin_job_id: string;
+  title: string;
+  company: string;
+  location: string | null;
+  stacks: Stack[];
+  first_count: number | null;
+  latest_count: number | null;
+  hours_tracked: number | null;
+  applicants_per_hour: number;
+}
+
+// GET /api/opportunities — where competition is thin, from the latest scrape.
+export interface OpportunitiesData {
+  as_of: string | null; // latest scrape time (ISO)
+  scanned: number; // jobs seen in the latest scrape window
+  max_applicants: number; // upper bound used for `low`
+  low: Job[]; // jobs at or under max_applicants, fewest first
+  fastest: FastJob[]; // highest applicants/hour
 }
 
 export interface SummaryData {
