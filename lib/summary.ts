@@ -11,9 +11,12 @@ export async function getSummary(supabase: SupabaseClient): Promise<SummaryData>
     .select("day, stack, total_results")
     .order("day", { ascending: false });
 
-  const openRoles = new Map<Stack, number>();
-  for (const r of (demand ?? []) as { stack: Stack; total_results: number | null }[]) {
-    if (!openRoles.has(r.stack) && r.total_results != null) openRoles.set(r.stack, r.total_results);
+  // Per-stack demand history, newest day first.
+  const history = new Map<Stack, { day: string; total: number }[]>();
+  for (const r of (demand ?? []) as { day: string; stack: Stack; total_results: number | null }[]) {
+    if (r.total_results == null) continue;
+    if (!history.has(r.stack)) history.set(r.stack, []);
+    history.get(r.stack)!.push({ day: r.day, total: r.total_results });
   }
 
   // Applicant stats over the captured jobs, aggregated per stack.
@@ -48,12 +51,20 @@ export async function getSummary(supabase: SupabaseClient): Promise<SummaryData>
 
   const stacks: StackSummary[] = STACKS.map((s) => {
     const a = agg.get(s)!;
+    const h = history.get(s) ?? [];
+    const latest = h[0];
+    const prev = h[1];
+    const weekAgo = latest && h.find((x) => daysBetween(x.day, latest.day) >= 7);
     return {
       stack: s,
-      open_roles: openRoles.get(s) ?? null,
+      open_roles: latest?.total ?? null,
       captured: a.captured,
       avg_applicants: a.n ? Math.round(a.sum / a.n) : null,
       max_applicants: a.n ? a.max : null,
+      prev_day: prev?.day ?? null,
+      prev_open_roles: prev?.total ?? null,
+      change_pct: latest && prev ? pctChange(prev.total, latest.total) : null,
+      change_week_pct: latest && weekAgo ? pctChange(weekAgo.total, latest.total) : null,
     };
   });
 
@@ -67,3 +78,8 @@ export async function getSummary(supabase: SupabaseClient): Promise<SummaryData>
     stacks,
   };
 }
+
+const daysBetween = (older: string, newer: string) =>
+  Math.round((Date.parse(newer) - Date.parse(older)) / 86_400_000);
+
+const pctChange = (from: number, to: number) => (from ? Math.round(((to - from) / from) * 100) : null);
