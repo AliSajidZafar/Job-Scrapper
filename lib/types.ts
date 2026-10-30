@@ -1,17 +1,48 @@
 // Shared domain types for the LinkedIn Job Market Intelligence Tool.
 // Mirrors the tables and views defined in supabase/schema.sql.
 
-export const STACKS = ["SAP", "Salesforce", "MERN", ".NET", "Java"] as const;
+export const STACKS = [
+  "SAP",
+  "Salesforce",
+  "MERN",
+  ".NET",
+  "Java",
+  "ServiceNow",
+  "Workday",
+  "Data Engineering",
+  "DevOps",
+  "AI / ML",
+] as const;
 export type Stack = (typeof STACKS)[number];
 
 // Stack -> CSS custom property holding its (theme-aware) categorical color.
-// Colors are the dataviz reference's first five validated slots, in order.
+// Ten validated categorical slots (dataviz palette, CVD-safe both modes — see
+// globals.css). The first five are unchanged for data continuity.
 export const STACK_COLOR_VAR: Record<Stack, string> = {
   SAP: "--s-sap",
   Salesforce: "--s-salesforce",
   MERN: "--s-mern",
   ".NET": "--s-net",
   Java: "--s-java",
+  ServiceNow: "--s-servicenow",
+  Workday: "--s-workday",
+  "Data Engineering": "--s-data",
+  DevOps: "--s-devops",
+  "AI / ML": "--s-ml",
+};
+
+// Compact labels for tight spots (tiles, filter pills, chart legends).
+export const STACK_SHORT: Record<Stack, string> = {
+  SAP: "SAP",
+  Salesforce: "Salesforce",
+  MERN: "MERN",
+  ".NET": ".NET",
+  Java: "Java",
+  ServiceNow: "ServiceNow",
+  Workday: "Workday",
+  "Data Engineering": "Data Eng",
+  DevOps: "DevOps",
+  "AI / ML": "AI / ML",
 };
 
 export type JobType = "contract" | "full_time";

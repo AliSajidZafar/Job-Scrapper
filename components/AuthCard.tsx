@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { getSupabaseServer } from "@/lib/supabase";
 import { getSummary } from "@/lib/summary";
-import { STACK_COLOR_VAR, type SummaryData } from "@/lib/types";
+import { STACK_COLOR_VAR, STACK_SHORT, type SummaryData } from "@/lib/types";
 import { Logo } from "./Logo";
 import { ThemeToggle } from "./ThemeToggle";
 
@@ -78,7 +78,8 @@ async function loadMarket(): Promise<Market> {
 function BrandPanel({ market }: { market: Market }) {
   const stacks = market?.summary.stacks ?? [];
   const peak = Math.max(1, ...stacks.map((s) => s.open_roles ?? 0));
-  const ranked = [...stacks].sort((a, b) => (b.open_roles ?? 0) - (a.open_roles ?? 0));
+  // Top stacks by demand — keep the panel compact with ten stacks.
+  const ranked = [...stacks].sort((a, b) => (b.open_roles ?? 0) - (a.open_roles ?? 0)).slice(0, 6);
 
   return (
     <aside className="relative hidden overflow-hidden bg-[#0c3d44] text-white lg:flex lg:flex-col lg:justify-between lg:p-12">
@@ -119,7 +120,7 @@ function BrandPanel({ market }: { market: Market }) {
                 <div key={s.stack} className="grid grid-cols-[5.5rem_1fr_3.5rem] items-center gap-3 text-xs">
                   <span className="flex items-center gap-2 text-white/85">
                     <span className="h-2 w-2 rounded-full" style={{ background: `var(${STACK_COLOR_VAR[s.stack]})` }} />
-                    {s.stack}
+                    {STACK_SHORT[s.stack]}
                   </span>
                   <span className="h-1.5 overflow-hidden rounded-full bg-white/10">
                     <span

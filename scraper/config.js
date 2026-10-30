@@ -13,6 +13,19 @@ module.exports = {
     { name: "MERN", query: '"MERN"', match: [/\bMERN\b/i, /mongo.*express.*react.*node/i] },
     { name: ".NET", query: '".NET"', match: [/\.NET\b/i, /\bC#\b/i, /\bASP\.NET\b/i] },
     { name: "Java", query: '"Java" NOT "JavaScript"', match: [/\bjava\b/i] },
+    { name: "ServiceNow", query: "ServiceNow", match: [/service\s?now/i] },
+    { name: "Workday", query: "Workday", match: [/\bworkday\b/i] },
+    {
+      name: "Data Engineering",
+      query: '"Data Engineer"',
+      match: [/data engineer/i, /\bETL\b/i, /\b(spark|databricks|snowflake|airflow)\b/i],
+    },
+    { name: "DevOps", query: "DevOps", match: [/\bdevops\b/i, /\bSRE\b/i, /site reliability/i] },
+    {
+      name: "AI / ML",
+      query: '"Machine Learning"',
+      match: [/machine learning/i, /\bML\s?Ops\b/i, /\b(ML|AI) engineer/i, /deep learning/i],
+    },
   ],
 
   // Filters applied to every search (LinkedIn URL query params).

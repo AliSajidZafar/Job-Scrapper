@@ -24,12 +24,17 @@
   --good: #0a8f0a;
   --warn: #b07f00;
   --crit: #c93838;
-  /* categorical series (validated, in fixed order) */
+  /* categorical series (10 slots, CVD-validated light+dark, fixed order) */
   --s-sap: #2a78d6;
   --s-salesforce: #eb6834;
   --s-mern: #1baf7a;
   --s-net: #eda100;
   --s-java: #e87ba4;
+  --s-servicenow: #008300;
+  --s-workday: #6250d6;
+  --s-data: #e34948;
+  --s-devops: #1098a8;
+  --s-ml: #a35e22;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -55,6 +60,11 @@
     --s-mern: #199e70;
     --s-net: #c98500;
     --s-java: #d55181;
+    --s-servicenow: #008300;
+    --s-workday: #9085e9;
+    --s-data: #e66767;
+    --s-devops: #2096a8;
+    --s-ml: #c17f3f;
   }
 }
 
@@ -80,6 +90,11 @@
   --s-mern: #199e70;
   --s-net: #c98500;
   --s-java: #d55181;
+  --s-servicenow: #008300;
+  --s-workday: #9085e9;
+  --s-data: #e66767;
+  --s-devops: #2096a8;
+  --s-ml: #c17f3f;
 }
 
 /* Expose tokens as Tailwind color utilities (bg-card, text-ink, border-line, …).
