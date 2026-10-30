@@ -32,7 +32,7 @@ CREATE INDEX idx_jobs_applicants ON jobs (applicant_count DESC NULLS LAST);
 -- ============================================================
 CREATE TABLE job_stacks (
   job_id  uuid NOT NULL REFERENCES jobs (id) ON DELETE CASCADE,
-  stack   text NOT NULL CHECK (stack IN ('SAP', 'Salesforce', 'MERN', '.NET', 'Java')),
+  stack   text NOT NULL CHECK (stack IN ('SAP', 'Salesforce', 'MERN', '.NET', 'Java', 'ServiceNow', 'Workday', 'Data Engineering', 'DevOps', 'AI / ML')),
   PRIMARY KEY (job_id, stack)
 );
 
@@ -84,7 +84,7 @@ ORDER BY 1, 2;
 -- ============================================================
 CREATE TABLE search_snapshots (
   id             uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  stack          text NOT NULL CHECK (stack IN ('SAP', 'Salesforce', 'MERN', '.NET', 'Java')),
+  stack          text NOT NULL CHECK (stack IN ('SAP', 'Salesforce', 'MERN', '.NET', 'Java', 'ServiceNow', 'Workday', 'Data Engineering', 'DevOps', 'AI / ML')),
   total_results  integer,                      -- LinkedIn's "N results" for the search
   scraped_count  integer,                      -- how many we captured in detail (<= cap)
   searched_at    timestamptz DEFAULT now()

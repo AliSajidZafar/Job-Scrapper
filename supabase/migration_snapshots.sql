@@ -12,7 +12,7 @@ CREATE INDEX idx_jobs_applicants ON jobs (applicant_count DESC NULLS LAST);
 -- ============================================================
 CREATE TABLE IF NOT EXISTS search_snapshots (
   id             uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  stack          text NOT NULL CHECK (stack IN ('SAP', 'Salesforce', 'MERN', '.NET', 'Java')),
+  stack          text NOT NULL CHECK (stack IN ('SAP', 'Salesforce', 'MERN', '.NET', 'Java', 'ServiceNow', 'Workday', 'Data Engineering', 'DevOps', 'AI / ML')),
   total_results  integer,
   scraped_count  integer,
   searched_at    timestamptz DEFAULT now()

@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import {
   STACKS,
   STACK_COLOR_VAR,
+  STACK_SHORT,
   type ApiResult,
   type CompanyStackRow,
   type FastJob,
@@ -88,16 +89,16 @@ export function Dashboard({ user }: { user: SessionUser | null }) {
 
   return (
     <div className="min-h-screen">
-      <header className="sticky top-0 z-20 border-b border-line bg-card">
+      <header className="sticky top-0 z-20 border-b border-line bg-card/90 backdrop-blur">
         <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4">
           <div className="flex items-center gap-3">
-            <Logo className="h-8 w-8 text-brand" />
+            <Logo className="h-9 w-9 text-brand" />
             <div className="leading-tight">
               <div className="text-[15px] font-semibold tracking-tight text-ink">
                 Mavericks <span className="text-brand">Market Intelligence</span>
               </div>
               <div className="hidden text-xs text-muted sm:block">
-                LinkedIn demand &amp; competition · SAP · Salesforce · MERN · .NET · Java
+                US remote IT hiring demand &amp; competition · {STACKS.length} tech stacks
               </div>
             </div>
           </div>
@@ -141,9 +142,9 @@ export function Dashboard({ user }: { user: SessionUser | null }) {
               <Card>
                 <SectionTitle
                   title="Demand trend"
-                  hint="Open roles per stack (LinkedIn result totals, not capped by the scrape limit)."
+                  hint="Open roles per stack (LinkedIn result totals). Use the stack filter above to focus on a few."
                 />
-                <TrendChart points={trend} />
+                <TrendChart points={trend} visible={filters.stacks} />
               </Card>
             )}
             {!loading && tab === "Opportunities" && <OpportunitiesView data={opps} filters={filters} />}
@@ -272,17 +273,24 @@ function Delta({ pct, suffix }: { pct: number | null; suffix?: string }) {
 }
 
 function StackTile({ s }: { s: StackSummary }) {
+  const noData = s.open_roles == null && s.captured === 0;
   return (
     <div className="rounded-xl border border-line bg-card p-4 transition-colors hover:border-brand/60">
-      <div className="flex items-center justify-between">
-        <span className="inline-flex items-center gap-2 text-sm font-medium text-ink">
-          <span className="h-2.5 w-2.5 rounded-full" style={{ background: `var(${STACK_COLOR_VAR[s.stack]})` }} />
-          {s.stack}
+      <div className="flex items-center justify-between gap-2">
+        <span className="inline-flex min-w-0 items-center gap-2 text-sm font-medium text-ink">
+          <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: `var(${STACK_COLOR_VAR[s.stack]})` }} />
+          <span className="truncate">{s.stack}</span>
         </span>
-        {s.max_applicants != null && (
-          <span className="rounded-full bg-brand-soft px-2 py-0.5 text-[11px] font-medium text-brand">
-            max {s.max_applicants}
+        {noData ? (
+          <span className="shrink-0 rounded-full border border-dashed border-line px-2 py-0.5 text-[11px] font-medium text-muted">
+            Soon
           </span>
+        ) : (
+          s.max_applicants != null && (
+            <span className="shrink-0 rounded-full bg-brand-soft px-2 py-0.5 text-[11px] font-medium text-brand">
+              max {s.max_applicants}
+            </span>
+          )
         )}
       </div>
       <div className="mt-3 flex items-baseline gap-2">
@@ -437,7 +445,7 @@ function FilterBar({ filters, setFilters }: { filters: Filters; setFilters: (f: 
                 className="h-2 w-2 rounded-full"
                 style={{ background: on ? "currentColor" : `var(${STACK_COLOR_VAR[s]})` }}
               />
-              {s}
+              {STACK_SHORT[s]}
             </button>
           );
         })}
@@ -680,7 +688,7 @@ function RawFeedTable({ jobs }: { jobs: Job[] }) {
 function CompanyMapTable({ rows }: { rows: CompanyStackRow[] }) {
   if (!rows.length) return <Empty />;
   return (
-    <Table head={["Company", ...STACKS, "Total"]}>
+    <Table head={["Company", ...STACKS.map((s) => STACK_SHORT[s]), "Total"]}>
       {rows.map((r) => (
         <Row key={r.company}>
           <Td className="font-medium text-ink">{r.company}</Td>

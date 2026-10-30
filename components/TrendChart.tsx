@@ -1,26 +1,31 @@
 "use client";
 
 import { useState } from "react";
-import { STACKS, STACK_COLOR_VAR, type Stack, type TrendPoint } from "@/lib/types";
+import { STACKS, STACK_COLOR_VAR, STACK_SHORT, type Stack, type TrendPoint } from "@/lib/types";
 
 // Dependency-free SVG line chart: one series per stack, x = day, y = open roles.
 // Markers are drawn even for a single day (so the chart is never blank); lines
 // connect them once there are two or more days. Colors come from the shared
-// token palette, so it adapts to dark mode.
+// token palette, so it adapts to dark mode. `visible` (the dashboard's stack
+// filter) narrows the series; empty = all ten.
 
 const W = 760;
 const H = 300;
 const PAD = { top: 16, right: 20, bottom: 36, left: 48 };
 
-export function TrendChart({ points }: { points: TrendPoint[] }) {
+export function TrendChart({ points, visible = [] }: { points: TrendPoint[]; visible?: Stack[] }) {
   const [hover, setHover] = useState<number | null>(null);
 
   if (points.length === 0) {
     return <p className="text-sm text-muted">No trend data yet — run a scrape to populate it.</p>;
   }
 
+  // Which stacks to draw: the filter selection, or all ten when nothing is picked.
+  const series: Stack[] = visible.length ? STACKS.filter((s) => visible.includes(s)) : [...STACKS];
+  const shown = new Set(series);
+
   const days = [...new Set(points.map((p) => p.day))].sort();
-  const maxCount = Math.max(1, ...points.map((p) => p.job_count));
+  const maxCount = Math.max(1, ...points.filter((p) => shown.has(p.stack)).map((p) => p.job_count));
   const plotW = W - PAD.left - PAD.right;
   const plotH = H - PAD.top - PAD.bottom;
 
@@ -97,7 +102,7 @@ export function TrendChart({ points }: { points: TrendPoint[] }) {
         )}
 
         {/* series: line (>=2 days) + donut markers */}
-        {STACKS.map((stack) => {
+        {series.map((stack) => {
           const color = `var(${STACK_COLOR_VAR[stack]})`;
           const pts = days.map((d, i) => ({ i, cx: x(i), cy: y(valueAt(d, stack)) }));
           return (
@@ -136,25 +141,27 @@ export function TrendChart({ points }: { points: TrendPoint[] }) {
         >
           <div className="mb-1.5 font-medium text-ink">{fmtDay(days[hover])}</div>
           <div className="space-y-1">
-            {STACKS.map((s) => (
-              <div key={s} className="flex items-center justify-between gap-4">
-                <span className="inline-flex items-center gap-1.5 text-sub">
-                  <span className="h-2 w-2 rounded-full" style={{ background: `var(${STACK_COLOR_VAR[s]})` }} />
-                  {s}
-                </span>
-                <span className="tabular-nums text-ink">{valueAt(days[hover], s).toLocaleString()}</span>
-              </div>
-            ))}
+            {[...series]
+              .sort((a, b) => valueAt(days[hover!], b) - valueAt(days[hover!], a))
+              .map((s) => (
+                <div key={s} className="flex items-center justify-between gap-4">
+                  <span className="inline-flex items-center gap-1.5 text-sub">
+                    <span className="h-2 w-2 rounded-full" style={{ background: `var(${STACK_COLOR_VAR[s]})` }} />
+                    {STACK_SHORT[s]}
+                  </span>
+                  <span className="tabular-nums text-ink">{valueAt(days[hover!], s).toLocaleString()}</span>
+                </div>
+              ))}
           </div>
         </div>
       )}
 
       {/* legend */}
       <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1.5 text-xs text-sub">
-        {STACKS.map((s) => (
+        {series.map((s) => (
           <span key={s} className="inline-flex items-center gap-1.5">
             <span className="h-2.5 w-2.5 rounded-full" style={{ background: `var(${STACK_COLOR_VAR[s]})` }} />
-            {s}
+            {STACK_SHORT[s]}
           </span>
         ))}
       </div>
