@@ -29,7 +29,7 @@ It only reads job information. It never applies to jobs.
 | Custom domain + HTTPS | ✅ jobs.mavericksunited.co via Cloudflare |
 | Daily automation + email alerts | ✅ n8n on the VPS, alerts to your Gmail |
 
-**Data so far:** 163 unique jobs, 201 applicant-count readings and 15 daily demand totals, from 3 scrape runs (27–28 Oct). The first fully automatic run is 30 Oct at 7 PM PKT.
+**Data so far:** 163 unique jobs, 201 applicant-count readings and 15 daily demand totals from 3 scrape runs (27–28 Oct). Automatic daily runs start 30 Oct at 7 PM PKT.
 
 ---
 
@@ -76,6 +76,24 @@ It only reads job information. It never applies to jobs.
 
 ---
 
+### Day 3, evening (30 Oct): New look and new insights
+- **Redesigned the Sign in and Create account pages.**
+  - Large screens get a split layout with a brand panel showing live market numbers.
+  - Field icons and a show/hide password button.
+  - A password strength meter and clearer error messages.
+  - Works in light mode, dark mode and on phones.
+- **Redesigned the Admin page.**
+  - A health banner (green, amber or red) and the time of the next scheduled scrape.
+  - Key figures, a chart of jobs saved per run, and an automation panel with links to n8n.
+  - A "Market by stack" table and a richer users list.
+- **New: Movers.** The main screen shows which stack is rising most and which is falling most, and each stack tile shows its change since the previous scrape day. A weekly change is added once 7 days of data exist.
+- **New: Opportunities tab.**
+  - **Low-competition jobs:** fresh jobs with few applicants, filterable by 10, 25, 50 or 100 or fewer, each linked to LinkedIn so you can apply early.
+  - **Filling fastest:** jobs gaining applicants quickest (applicants per hour between scrapes).
+- All 19 security checks pass on the live site after these changes.
+
+---
+
 ## 4. How it fits together
 
 ```
@@ -113,7 +131,9 @@ It only reads job information. It never applies to jobs.
 
 ---
 
-## 7. Next phase (planned)
+## 7. Next phase (options)
 
-1. **New market-intelligence features:** options are being proposed for you to choose from.
-2. **Redesign the Sign in, Create account and Admin pages** to match the dashboard's look.
+1. **Specialisations inside stacks:** split each stack into sub-skills from job titles (e.g. SAP S/4HANA, FICO, ABAP; Salesforce Admin, Developer, CPQ), and fix MERN by counting React + Node jobs.
+2. **Weekly email digest:** n8n emails a Monday summary with top movers, the best low-competition jobs and the top hiring companies.
+3. **Scale up:** raise the scrape from 25 to about 200 jobs per stack per run.
+4. **Email verification** for new sign-ups.
