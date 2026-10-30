@@ -224,9 +224,8 @@ function MoversStrip({ stacks }: { stacks: StackSummary[] }) {
   return (
     <div className="mb-3 flex flex-wrap items-center gap-x-5 gap-y-2 rounded-xl border border-line bg-card px-4 py-2.5 text-sm">
       <span className="text-xs font-semibold uppercase tracking-wide text-muted">Movers</span>
-      {up && <Mover s={up} label="Rising most" />}
-      {down && <Mover s={down} label="Falling most" />}
-      {!up && !down && <span className="text-sub">No change in open roles.</span>}
+      <Mover s={up} label="Rising most" none="no stack rose" />
+      <Mover s={down} label="Falling most" none="no stack fell" />
       {since && (
         <span
           className="ml-auto text-xs text-muted"
@@ -239,7 +238,15 @@ function MoversStrip({ stacks }: { stacks: StackSummary[] }) {
   );
 }
 
-function Mover({ s, label }: { s: StackSummary; label: string }) {
+function Mover({ s, label, none }: { s: StackSummary | null; label: string; none: string }) {
+  if (!s) {
+    return (
+      <span className="inline-flex items-center gap-2">
+        <span className="text-sub">{label}:</span>
+        <span className="text-muted">None, {none}</span>
+      </span>
+    );
+  }
   return (
     <span className="inline-flex items-center gap-2">
       <span className="text-sub">{label}:</span>
