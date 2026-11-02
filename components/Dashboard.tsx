@@ -188,9 +188,11 @@ function SummarySection({
       <KpiBand summary={summary} totalByDay={totalByDay} loading={loading} />
 
       <div>
-        <div className="mb-3 flex items-baseline justify-between">
+        <div className="mb-3">
+          <div className="mb-1 text-right text-xs text-muted">
+            Total open roles on LinkedIn · last {totalByDay.length || "—"} days
+          </div>
           <h2 className="text-sm font-semibold uppercase tracking-wide text-muted">Demand by stack</h2>
-          <span className="text-xs text-muted">Open roles on LinkedIn · last {totalByDay.length || "—"} days</span>
         </div>
         {summary && <MoversStrip stacks={summary.stacks} />}
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
@@ -554,7 +556,7 @@ function AccountMenu({ user }: { user: SessionUser }) {
             <Avatar name={user.name} className="h-9 w-9 text-xs" />
             <div className="min-w-0">
               <div className="truncate text-sm font-semibold text-ink">{user.name}</div>
-              <div className="truncate text-xs text-muted">{user.role === "admin" ? "Administrator" : "Member"}</div>
+              <div className="truncate text-xs text-muted">{user.role === "admin" ? "Administrator" : "User"}</div>
             </div>
           </div>
           <div className="p-1.5">

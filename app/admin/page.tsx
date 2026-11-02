@@ -285,7 +285,7 @@ export default async function AdminPage() {
                 external
               />
             )}
-            <Tool href="/" title="Public dashboard" text="What everyone else sees." icon="chart" />
+            <Tool href="/" title="Main dashboard" text="The market dashboard signed-in users see." icon="chart" />
           </div>
         </section>
       </main>
