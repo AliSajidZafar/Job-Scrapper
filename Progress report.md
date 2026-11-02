@@ -1,6 +1,6 @@
 # Mavericks Market Intelligence: Progress Report
 
-**Period:** 27–30 October 2026
+**Period:** 27 October – 2 November 2026
 **Live dashboard:** https://jobs.mavericksunited.co
 **Automation (n8n):** https://n8n.mavericksunited.co
 **Code:** https://github.com/AliSajidZafar/Job-Scrapper (branch `main`)
@@ -9,7 +9,7 @@
 
 ## 1. What the product does
 
-Mavericks Market Intelligence tracks US demand for five tech stacks on LinkedIn: **SAP, Salesforce, MERN, .NET and Java**. Every day it collects new remote job postings (posted in the last 24 hours, Contract or Full-time, Easy Apply). It records how many open roles each stack has and how many people applied to each job. All of this is shown on a public dashboard so you can see which stacks are rising, which are falling, and where competition is lowest.
+Mavericks Market Intelligence tracks US remote demand for **ten tech stacks** on LinkedIn: **SAP, Salesforce, MERN, .NET, Java, ServiceNow, Workday, Data Engineering, DevOps and AI / ML**. Every day it collects new remote job postings (posted in the last 24 hours, Contract or Full-time, Easy Apply). It records how many open roles each stack has and how many people applied to each job. All of this is shown on a public dashboard so you can see which stacks are rising, which are falling, and where competition is lowest.
 
 It only reads job information. It never applies to jobs.
 
@@ -28,8 +28,11 @@ It only reads job information. It never applies to jobs.
 | Hosting on your VPS | ✅ Running 24/7, restarts by itself after a reboot |
 | Custom domain + HTTPS | ✅ jobs.mavericksunited.co via Cloudflare |
 | Daily automation + email alerts | ✅ n8n on the VPS, alerts to your Gmail |
+| Ten tech stacks tracked | ✅ 5 original + 5 new (ServiceNow, Workday, Data Engineering, DevOps, AI / ML) |
+| Movers & Opportunities views | ✅ Rising/falling stacks; low-competition and fastest-filling jobs |
+| Professional account menu | ✅ Avatar dropdown when signed in; clear sign-in buttons when out |
 
-**Data so far:** 163 unique jobs, 201 applicant-count readings and 15 daily demand totals from 3 scrape runs (27–28 Oct). Automatic daily runs start 30 Oct at 7 PM PKT.
+**Data so far:** all 10 stacks carry live data. Latest full run 2 Nov captured 92 jobs across the 10 stacks, on top of the earlier runs (27–30 Oct). The dashboard refreshes with each scrape.
 
 ---
 
@@ -92,6 +95,19 @@ It only reads job information. It never applies to jobs.
   - **Filling fastest:** jobs gaining applicants quickest (applicants per hour between scrapes).
 - All 19 security checks pass on the live site after these changes.
 
+### Day 3, later (30 Oct): Ten tech stacks
+- Researched the US IT staffing market and, with you, added **five new stacks** alongside the original five: **ServiceNow, Workday, Data Engineering, DevOps and AI / ML**.
+- Gave each stack its own colour, checked for colour-blind readability in both light and dark mode (ten distinct, accessible colours).
+- Rebuilt the main screen, trend chart, filters and company map to handle ten stacks cleanly; new stacks showed a **"Soon"** badge until their first scrape.
+- Updated the database to allow the new stack names, and deployed it all live.
+
+### Day 4 (2 Nov): Real data for all ten stacks + polish
+- **Filled the five new stacks with real jobs.** The weekend runs had been missed (PC off), and that evening LinkedIn's job pages were unusually slow, which left the scheduled run crawling. I cleared it and ran a **catch-up scrape of all ten stacks — 92 jobs**, so every stack now shows live open-role totals, applicant averages and opportunities.
+- **A proper account section.** Signed out, the header shows clear **Sign in** and **Create account** buttons; signed in, a professional **avatar menu** with your name, role, an Admin link (admins only) and Sign out — not loose text links.
+- **A higher-quality dark-mode toggle** — a clean filled crescent moon and a solid sun, replacing the thin earlier icons.
+- Added a safety control so a one-off catch-up run can use a smaller per-stack cap when LinkedIn is slow; the nightly run keeps its normal size.
+- All 19 security checks still pass on the live site.
+
 ---
 
 ## 4. How it fits together
@@ -115,6 +131,7 @@ It only reads job information. It never applies to jobs.
 - **Admin password:** `C:\Users\Mavericks United\Mavericks-admin-login.txt`. To reset it, ask me.
 - **Secrets** (database keys, session secret, webhook address) live only in `.env.local` on your PC and the VPS, never on GitHub.
 - **Manual scrape at any time:** run `npm run scrape` in the project folder.
+- **"Open roles" vs "Tracked" on each stack tile:** *open roles* is LinkedIn's total count of matching jobs (the size of the market); *tracked* is how many individual postings we pull in detail and follow over time (the sample we re-check for applicant growth).
 
 ---
 
@@ -122,8 +139,9 @@ It only reads job information. It never applies to jobs.
 
 | Item | Notes |
 |---|---|
-| MERN finds very few jobs | The search needs the literal word "MERN" in the title, so it only catches 1–2 jobs per run. Needs smarter matching (e.g. React + Node). |
-| 25 jobs per stack per run | Kept low for testing. Can be raised toward about 200, at roughly 1 hour per run. |
+| MERN and Workday find few jobs | Their keyword matching is too strict (MERN 1, Workday ~4 per run). Both need smarter matching (e.g. MERN = React + Node; Workday title variants). |
+| Nightly run can be slow | With ten stacks at 25 jobs each, a slow LinkedIn evening can push a full run past an hour. Options: trim the per-stack cap, or speed up the applicant-count step. |
+| Keep the PC on at 7 PM | The scrape runs on your PC; weekend runs were missed because it was off. n8n emails you when a run is missed. |
 | No email verification on sign-up | Accounts are created instantly. Can be added with your GoDaddy mailbox. |
 | Company names not normalised | For example, "Accenture" and "Accenture Federal" count as separate companies. |
 | Easy-Apply-only filter | Hides jobs without Easy Apply, which undercounts real demand. Your decision whether to keep it. |
@@ -133,7 +151,10 @@ It only reads job information. It never applies to jobs.
 
 ## 7. Next phase (options)
 
-1. **Specialisations inside stacks:** split each stack into sub-skills from job titles (e.g. SAP S/4HANA, FICO, ABAP; Salesforce Admin, Developer, CPQ), and fix MERN by counting React + Node jobs.
+**Front-end polish (planned next, 3 Nov):** an executive KPI band across the top; a small trend sparkline in each stack tile; refined tabs with icons; trend-chart gradient fills and a clickable legend; a typography and spacing pass; a proper footer; and small interaction touches. Recommended first: the KPI band, sparklines and trend-chart polish.
+
+**Other options:**
+1. **Specialisations inside stacks:** split each stack into sub-skills from job titles (e.g. SAP S/4HANA, FICO, ABAP; Salesforce Admin, Developer, CPQ), and improve MERN/Workday matching.
 2. **Weekly email digest:** n8n emails a Monday summary with top movers, the best low-competition jobs and the top hiring companies.
-3. **Scale up:** raise the scrape from 25 to about 200 jobs per stack per run.
+3. **Scale up:** raise the scrape toward more jobs per stack (balanced against run time).
 4. **Email verification** for new sign-ups.
