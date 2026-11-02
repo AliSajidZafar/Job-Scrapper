@@ -39,7 +39,9 @@ module.exports = {
 
   // Safety / pacing. Keep these conservative — a dedicated secondary account only.
   limits: {
-    maxJobsPerStack: 25, // hard cap per stack per run (raise toward ~200 for production)
+    // Env override (MAX_JOBS_PER_STACK) lets a one-off catch-up run use a smaller
+    // cap when LinkedIn detail pages are slow; the scheduled run uses the default.
+    maxJobsPerStack: Number(process.env.MAX_JOBS_PER_STACK) || 25, // hard cap per stack per run
     fetchApplicantCounts: true, // visit each job's detail page for applicant count (slower)
     pageDelayMs: [2000, 5000], // random delay between page loads [min, max]
     stackDelayMs: [5000, 10000], // random delay between stacks [min, max]
