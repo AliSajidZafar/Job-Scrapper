@@ -36,15 +36,15 @@ export function ThemeToggle() {
       className="grid h-9 w-9 place-items-center rounded-lg border border-line bg-card text-sub transition-colors hover:text-ink hover:border-brand"
     >
       {dark ? (
-        // sun
-        <svg viewBox="0 0 24 24" className="h-4.5 w-4.5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-          <circle cx="12" cy="12" r="4" />
-          <path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M19.1 4.9l-1.4 1.4M6.3 17.7l-1.4 1.4" />
+        // sun — filled core for weight, evenly spaced rays
+        <svg viewBox="0 0 24 24" className="h-[18px] w-[18px]" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
+          <circle cx="12" cy="12" r="3.6" fill="currentColor" stroke="none" />
+          <path d="M12 2.5v2.4M12 19.1v2.4M2.5 12h2.4M19.1 12h2.4M5.1 5.1l1.7 1.7M17.2 17.2l1.7 1.7M18.9 5.1l-1.7 1.7M6.8 17.2l-1.7 1.7" />
         </svg>
       ) : (
-        // moon
-        <svg viewBox="0 0 24 24" className="h-4.5 w-4.5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z" />
+        // moon — clean filled crescent
+        <svg viewBox="0 0 24 24" className="h-[18px] w-[18px]" fill="currentColor" aria-hidden>
+          <path d="M12.5 3a.9.9 0 0 0-.86 1.17 7 7 0 0 1-8.8 8.8A.9.9 0 0 0 1.7 14.1 9 9 0 1 0 12.5 3Z" />
         </svg>
       )}
     </button>
