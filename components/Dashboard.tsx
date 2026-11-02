@@ -18,6 +18,7 @@ import {
   type TrendPoint,
 } from "@/lib/types";
 import { TrendChart } from "./TrendChart";
+import { Sparkline } from "./Sparkline";
 import { Logo } from "./Logo";
 import { ThemeToggle } from "./ThemeToggle";
 
@@ -115,7 +116,7 @@ export function Dashboard({ user }: { user: SessionUser | null }) {
       <main className="mx-auto max-w-6xl space-y-8 px-4 py-8">
         {configured === false && <NotConfigured />}
 
-        <SummarySection summary={summary} loading={loading && !summary} />
+        <SummarySection summary={summary} trend={trend} loading={loading && !summary} />
 
         <div>
           <FilterBar filters={filters} setFilters={setFilters} />
@@ -169,46 +170,185 @@ async function fetchJson<T>(url: string): Promise<ApiResult<T>> {
 
 /* ----------------------------- summary ----------------------------- */
 
-function SummarySection({ summary, loading }: { summary: SummaryData | null; loading: boolean }) {
+function SummarySection({
+  summary,
+  trend,
+  loading,
+}: {
+  summary: SummaryData | null;
+  trend: TrendPoint[];
+  loading: boolean;
+}) {
+  // Per-stack open-roles history (oldest → newest) for the tile sparklines,
+  // plus a whole-market total per day for the headline sparkline.
+  const { byStack, totalByDay } = buildHistories(trend);
+
   return (
-    <section>
-      <div className="mb-3 flex items-baseline justify-between">
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-muted">Market at a glance</h2>
-        {summary && (
-          <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-sub">
-            <span>
-              <span className="tabular-nums font-medium text-ink">
-                {summary.totals.open_roles.toLocaleString()}
-              </span>{" "}
-              open roles
-            </span>
-            <span>
-              <span className="tabular-nums font-medium text-ink">{summary.totals.captured}</span> tracked
-            </span>
-            <span>
-              <span className="tabular-nums font-medium text-ink">
-                {summary.totals.total_applicants.toLocaleString()}
-              </span>{" "}
-              total applicants
-            </span>
-            <span>
-              <span className="tabular-nums font-medium text-ink">
-                {summary.totals.avg_applicants ?? "—"}
-              </span>{" "}
-              avg applicants
-            </span>
-          </div>
-        )}
-      </div>
-      {summary && <MoversStrip stacks={summary.stacks} />}
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
-        {loading || !summary
-          ? STACKS.map((s) => <TileSkeleton key={s} />)
-          : summary.stacks.map((s) => <StackTile key={s.stack} s={s} />)}
+    <section className="space-y-6">
+      <KpiBand summary={summary} totalByDay={totalByDay} loading={loading} />
+
+      <div>
+        <div className="mb-3 flex items-baseline justify-between">
+          <h2 className="text-sm font-semibold uppercase tracking-wide text-muted">Demand by stack</h2>
+          <span className="text-xs text-muted">Open roles on LinkedIn · last {totalByDay.length || "—"} days</span>
+        </div>
+        {summary && <MoversStrip stacks={summary.stacks} />}
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+          {loading || !summary
+            ? STACKS.map((s) => <TileSkeleton key={s} />)
+            : summary.stacks.map((s) => <StackTile key={s.stack} s={s} history={byStack.get(s.stack) ?? []} />)}
+        </div>
       </div>
     </section>
   );
 }
+
+// Flatten trend points into per-stack series and a market total per day, both
+// ordered oldest → newest so sparklines read left-to-right like the big chart.
+function buildHistories(trend: TrendPoint[]) {
+  const days = [...new Set(trend.map((p) => p.day))].sort();
+  const lookup = new Map<string, number>();
+  for (const p of trend) lookup.set(`${p.day}|${p.stack}`, p.job_count);
+
+  const byStack = new Map<Stack, number[]>();
+  for (const s of STACKS) {
+    const series = days.map((d) => lookup.get(`${d}|${s}`) ?? 0);
+    // Drop leading zeros (days before a stack existed) so new stacks don't
+    // show a misleading flat run at the bottom.
+    const firstReal = series.findIndex((v) => v > 0);
+    byStack.set(s, firstReal === -1 ? [] : series.slice(firstReal));
+  }
+
+  const totalByDay = days.map((d) =>
+    STACKS.reduce((sum, s) => sum + (lookup.get(`${d}|${s}`) ?? 0), 0),
+  );
+  return { byStack, totalByDay };
+}
+
+/* ------------------------------ KPI band ---------------------------- */
+
+// Executive headline band: the four numbers that frame the whole dashboard,
+// promoted from the old inline strip into proper stat tiles. The first carries
+// a market-wide sparkline and a day-over-day delta; the rest stay clean.
+function KpiBand({
+  summary,
+  totalByDay,
+  loading,
+}: {
+  summary: SummaryData | null;
+  totalByDay: number[];
+  loading: boolean;
+}) {
+  if (loading || !summary) {
+    return (
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        {[0, 1, 2, 3].map((i) => (
+          <div key={i} className="h-[112px] animate-pulse rounded-2xl border border-line bg-card" />
+        ))}
+      </div>
+    );
+  }
+
+  const t = summary.totals;
+  const openDelta =
+    totalByDay.length >= 2
+      ? pctChangeLocal(totalByDay[totalByDay.length - 2], totalByDay[totalByDay.length - 1])
+      : null;
+
+  return (
+    <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+      <Kpi
+        label="Open roles"
+        value={t.open_roles.toLocaleString()}
+        hint={`across ${STACKS.length} tech stacks`}
+        delta={openDelta}
+        spark={totalByDay}
+        accent="var(--brand)"
+        icon={
+          <path d="M3 17l5-5 3 3 7-7M14 8h5v5" />
+        }
+      />
+      <Kpi
+        label="Jobs tracked"
+        value={t.captured.toLocaleString()}
+        hint="pulled in detail & re-checked"
+        icon={
+          <>
+            <path d="M4 7h16M4 12h16M4 17h10" />
+          </>
+        }
+      />
+      <Kpi
+        label="Total applicants"
+        value={t.total_applicants.toLocaleString()}
+        hint="across tracked jobs"
+        icon={
+          <>
+            <circle cx="9" cy="8" r="3" />
+            <path d="M15 11a3 3 0 1 0-1.5-5.6M4 20a5 5 0 0 1 10 0M14 20a5 5 0 0 1 6-4.6" />
+          </>
+        }
+      />
+      <Kpi
+        label="Avg applicants"
+        value={t.avg_applicants != null ? String(t.avg_applicants) : "—"}
+        hint="per tracked job · competition"
+        icon={
+          <>
+            <path d="M3 20h18" />
+            <rect x="5" y="11" width="3.5" height="7" rx="1" />
+            <rect x="10.25" y="7" width="3.5" height="11" rx="1" />
+            <rect x="15.5" y="13" width="3.5" height="5" rx="1" />
+          </>
+        }
+      />
+    </div>
+  );
+}
+
+function Kpi({
+  label,
+  value,
+  hint,
+  delta = null,
+  spark,
+  accent = "var(--brand)",
+  icon,
+}: {
+  label: string;
+  value: string;
+  hint: string;
+  delta?: number | null;
+  spark?: number[];
+  accent?: string;
+  icon: React.ReactNode;
+}) {
+  return (
+    <div className="group relative overflow-hidden rounded-2xl border border-line bg-card p-4 transition-colors hover:border-brand/50">
+      {/* hairline accent rule along the top edge */}
+      <span className="absolute inset-x-0 top-0 h-[3px]" style={{ background: accent, opacity: 0.85 }} />
+      <div className="flex items-start justify-between">
+        <span className="text-xs font-semibold uppercase tracking-wide text-muted">{label}</span>
+        <span className="text-muted/70 transition-colors group-hover:text-brand">
+          <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+            {icon}
+          </svg>
+        </span>
+      </div>
+      <div className="mt-2 flex items-baseline gap-2">
+        <span className="text-[28px] font-semibold leading-none tracking-tight tabular-nums text-ink">{value}</span>
+        {delta != null && <Delta pct={delta} />}
+      </div>
+      <div className="mt-1 text-xs text-muted">{hint}</div>
+      {spark && spark.length >= 2 && (
+        <Sparkline values={spark} color={accent} className="mt-2.5 h-7 w-full" />
+      )}
+    </div>
+  );
+}
+
+const pctChangeLocal = (from: number, to: number) =>
+  from ? Math.round(((to - from) / from) * 100) : null;
 
 const shortDate = (iso: string) =>
   new Date(`${iso.slice(0, 10)}T12:00:00Z`).toLocaleDateString("en-GB", { day: "numeric", month: "short" });
@@ -272,10 +412,11 @@ function Delta({ pct, suffix }: { pct: number | null; suffix?: string }) {
   );
 }
 
-function StackTile({ s }: { s: StackSummary }) {
+function StackTile({ s, history }: { s: StackSummary; history: number[] }) {
   const noData = s.open_roles == null && s.captured === 0;
+  const color = `var(${STACK_COLOR_VAR[s.stack]})`;
   return (
-    <div className="rounded-xl border border-line bg-card p-4 transition-colors hover:border-brand/60">
+    <div className="group relative overflow-hidden rounded-xl border border-line bg-card p-4 transition-colors hover:border-brand/60">
       <div className="flex items-center justify-between gap-2">
         <span className="inline-flex min-w-0 items-center gap-2 text-sm font-medium text-ink">
           <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: `var(${STACK_COLOR_VAR[s.stack]})` }} />
@@ -309,7 +450,16 @@ function StackTile({ s }: { s: StackSummary }) {
           </span>
         )}
       </div>
-      <div className="mt-3 flex items-center justify-between border-t border-line pt-2 text-xs text-sub">
+      {history.length >= 2 ? (
+        <Sparkline values={history} color={color} className="mt-2.5 h-7 w-full" />
+      ) : (
+        // No multi-day history yet (new stacks) — a faint baseline keeps the
+        // tiles aligned and hints that the trend line is still being collected.
+        <div className="mt-2.5 flex h-7 items-center" aria-hidden title="Trend builds over the next few scrapes">
+          <div className="w-full border-t border-dashed border-line" />
+        </div>
+      )}
+      <div className="mt-2.5 flex items-center justify-between border-t border-line pt-2 text-xs text-sub">
         <span>
           <span className="tabular-nums text-ink">{s.captured}</span> tracked
         </span>
@@ -322,7 +472,7 @@ function StackTile({ s }: { s: StackSummary }) {
 }
 
 function TileSkeleton() {
-  return <div className="h-[132px] animate-pulse rounded-xl border border-line bg-card" />;
+  return <div className="h-[184px] animate-pulse rounded-xl border border-line bg-card" />;
 }
 
 /* ----------------------------- chrome ------------------------------ */
