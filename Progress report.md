@@ -1,6 +1,6 @@
 # Mavericks Market Intelligence: Progress Report
 
-**Period:** 27 October – 2 November 2026
+**Period:** 27 October – 3 November 2026
 **Live dashboard:** https://jobs.mavericksunited.co
 **Automation (n8n):** https://n8n.mavericksunited.co
 **Code:** https://github.com/AliSajidZafar/Job-Scrapper (branch `main`)
@@ -31,6 +31,7 @@ It only reads job information. It never applies to jobs.
 | Ten tech stacks tracked | ✅ 5 original + 5 new (ServiceNow, Workday, Data Engineering, DevOps, AI / ML) |
 | Movers & Opportunities views | ✅ Rising/falling stacks; low-competition and fastest-filling jobs |
 | Professional account menu | ✅ Avatar dropdown when signed in; clear sign-in buttons when out |
+| Executive dashboard polish | ✅ KPI band, per-stack sparklines, focusable trend chart (3 Nov) |
 
 **Data so far:** all 10 stacks carry live data. Latest full run 2 Nov captured 92 jobs across the 10 stacks, on top of the earlier runs (27–30 Oct). The dashboard refreshes with each scrape.
 
@@ -108,6 +109,12 @@ It only reads job information. It never applies to jobs.
 - Added a safety control so a one-off catch-up run can use a smaller per-stack cap when LinkedIn is slow; the nightly run keeps its normal size.
 - All 19 security checks still pass on the live site.
 
+### Day 5 (3 Nov): Executive polish
+- **Executive KPI band.** A headline row across the top — open roles, jobs tracked, total applicants and average applicants — as clean stat cards, each with a colour accent and an icon, and (for open roles) a market-wide trend sparkline plus a day-over-day change.
+- **Per-stack sparklines.** Every stack tile now shows a small trend line in its own colour, so you can read each stack's direction at a glance. New stacks show a faint placeholder line until they have a few days of history.
+- **Focusable trend chart.** The chart legend is now interactive: click any stack to isolate it, which reveals a soft gradient fill under its line; click it again to bring all ten back. With every stack shown it stays as clean lines (fills would overlap into mud).
+- Checked in light mode, dark mode and on phones; the production build is clean and all 19 security checks still pass on the live site. **Deployed to https://jobs.mavericksunited.co.**
+
 ---
 
 ## 4. How it fits together
@@ -151,7 +158,7 @@ It only reads job information. It never applies to jobs.
 
 ## 7. Next phase (options)
 
-**Front-end polish (planned next, 3 Nov):** an executive KPI band across the top; a small trend sparkline in each stack tile; refined tabs with icons; trend-chart gradient fills and a clickable legend; a typography and spacing pass; a proper footer; and small interaction touches. Recommended first: the KPI band, sparklines and trend-chart polish.
+**Front-end polish — first round done (3 Nov):** the executive KPI band, per-stack tile sparklines, and the focusable trend chart with gradient fills are built and live (see Day 5). Still open from the original list: refined tabs with icons, a typography and spacing pass, a proper footer, and small interaction touches.
 
 **Other options:**
 1. **Specialisations inside stacks:** split each stack into sub-skills from job titles (e.g. SAP S/4HANA, FICO, ABAP; Salesforce Admin, Developer, CPQ), and improve MERN/Workday matching.
