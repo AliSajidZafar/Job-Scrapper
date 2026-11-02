@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   STACKS,
   STACK_COLOR_VAR,
@@ -327,19 +327,27 @@ function TileSkeleton() {
 
 /* ----------------------------- chrome ------------------------------ */
 
-const ghostButton =
-  "inline-flex h-9 items-center gap-1.5 rounded-lg border border-line bg-card px-3 text-xs text-sub transition-colors hover:border-brand hover:text-ink";
 
+// Professional account control: a single trigger in the header that opens a
+// dropdown panel — a proper account section rather than loose buttons. Signed
+// out it presents sign-in / create-account; signed in, an avatar menu.
 function AccountControls({ user }: { user: SessionUser | null }) {
+  // Signed out: visible, discoverable sign-in / create-account buttons.
   if (!user) {
     return (
       <div className="flex items-center gap-2">
-        <a href="/login" className={ghostButton}>
+        <a
+          href="/login"
+          className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-line bg-card px-3 text-xs font-medium text-ink transition-colors hover:border-brand"
+        >
+          <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4M10 17l5-5-5-5M15 12H3" />
+          </svg>
           Sign in
         </a>
         <a
           href="/signup"
-          className="inline-flex h-9 items-center rounded-lg bg-brand px-3 text-xs font-medium text-brand-ink transition-opacity hover:opacity-90"
+          className="hidden h-9 items-center rounded-lg bg-brand px-3 text-xs font-semibold text-brand-ink transition-opacity hover:opacity-90 sm:inline-flex"
         >
           Create account
         </a>
@@ -347,26 +355,108 @@ function AccountControls({ user }: { user: SessionUser | null }) {
     );
   }
 
+  // Signed in: a proper avatar dropdown menu.
+  return <AccountMenu user={user} />;
+}
+
+function AccountMenu({ user }: { user: SessionUser }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    function onDoc(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    }
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") setOpen(false);
+    }
+    document.addEventListener("mousedown", onDoc);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDoc);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
+
   return (
-    <div className="flex items-center gap-2">
-      <span className="hidden max-w-36 truncate text-xs text-sub lg:inline" title={user.name}>
-        Hi, <span className="font-medium text-ink">{user.name.split(" ")[0]}</span>
-      </span>
-      {user.role === "admin" && (
-        <a href="/admin" title="Admin" className={ghostButton}>
-          <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <rect x="4" y="11" width="16" height="10" rx="2" />
-            <path d="M8 11V7a4 4 0 0 1 8 0v4" />
-          </svg>
-          <span className="hidden sm:inline">Admin</span>
-        </a>
+    <div ref={ref} className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        aria-haspopup="menu"
+        aria-expanded={open}
+        className="inline-flex h-9 items-center gap-2 rounded-lg border border-line bg-card py-1 pl-1 pr-2.5 text-xs font-medium text-ink transition-colors hover:border-brand"
+      >
+        <Avatar name={user.name} className="h-7 w-7 text-[11px]" />
+        <span className="hidden max-w-28 truncate sm:inline">{user.name.split(" ")[0]}</span>
+        <svg viewBox="0 0 24 24" className={`h-3.5 w-3.5 text-muted transition-transform ${open ? "rotate-180" : ""}`} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="m6 9 6 6 6-6" />
+        </svg>
+      </button>
+
+      {open && (
+        <div
+          role="menu"
+          className="absolute right-0 z-40 mt-2 w-60 origin-top-right overflow-hidden rounded-xl border border-line bg-card shadow-lg shadow-black/5"
+        >
+          <div className="flex items-center gap-3 border-b border-line px-4 py-3">
+            <Avatar name={user.name} className="h-9 w-9 text-xs" />
+            <div className="min-w-0">
+              <div className="truncate text-sm font-semibold text-ink">{user.name}</div>
+              <div className="truncate text-xs text-muted">{user.role === "admin" ? "Administrator" : "Member"}</div>
+            </div>
+          </div>
+          <div className="p-1.5">
+            {user.role === "admin" && (
+              <MenuLink href="/admin">
+                <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="4" y="11" width="16" height="10" rx="2" />
+                  <path d="M8 11V7a4 4 0 0 1 8 0v4" />
+                </svg>
+                Admin dashboard
+              </MenuLink>
+            )}
+            <form action="/api/auth/logout" method="post">
+              <button
+                type="submit"
+                className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-sm text-sub transition-colors hover:bg-plane hover:text-crit"
+              >
+                <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9" />
+                </svg>
+                Sign out
+              </button>
+            </form>
+          </div>
+        </div>
       )}
-      <form action="/api/auth/logout" method="post">
-        <button type="submit" className={ghostButton}>
-          Sign out
-        </button>
-      </form>
     </div>
+  );
+}
+
+function MenuLink({ href, children }: { href: string; children: React.ReactNode }) {
+  return (
+    <a
+      href={href}
+      className="flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm text-sub transition-colors hover:bg-plane hover:text-ink"
+    >
+      {children}
+    </a>
+  );
+}
+
+function Avatar({ name, className = "" }: { name: string; className?: string }) {
+  const initials = name
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((p) => p[0]!.toUpperCase())
+    .join("");
+  return (
+    <span className={`grid shrink-0 place-items-center rounded-md bg-brand-soft font-semibold text-brand ${className}`}>
+      {initials || "?"}
+    </span>
   );
 }
 
