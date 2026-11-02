@@ -1,0 +1,9 @@
+Mavericks Market Intelligence — admin login
+
+Sign-in page: https://jobs.mavericksunited.co/admin/login
+Name:         Mavericks
+Email:        admin@mavericksunited.co
+Password:     -Mnhtx-jdh%_9rMgBWec
+
+Save these in a password manager, then delete this file.
+To get a new password, run from the project folder: node scripts/create-admin.js
