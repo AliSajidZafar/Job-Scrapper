@@ -19,6 +19,7 @@ import {
 } from "@/lib/types";
 import { TrendChart } from "./TrendChart";
 import { Sparkline } from "./Sparkline";
+import { StackDetail } from "./StackDetail";
 import { Logo } from "./Logo";
 import { ThemeToggle } from "./ThemeToggle";
 
@@ -182,6 +183,8 @@ function SummarySection({
   // Per-stack open-roles history (oldest → newest) for the tile sparklines,
   // plus a whole-market total per day for the headline sparkline.
   const { byStack, totalByDay } = buildHistories(trend);
+  // The stack whose drill-down drawer is open.
+  const [selected, setSelected] = useState<Stack | null>(null);
 
   return (
     <section className="space-y-6">
@@ -192,15 +195,22 @@ function SummarySection({
           <div className="mb-1 text-right text-xs text-muted">
             Total open roles on LinkedIn · last {totalByDay.length || "—"} days
           </div>
-          <h2 className="text-sm font-semibold uppercase tracking-wide text-muted">Demand by stack</h2>
+          <div className="flex items-baseline justify-between gap-3">
+            <h2 className="text-sm font-semibold uppercase tracking-wide text-muted">Demand by stack</h2>
+            <span className="text-xs text-muted">Select a stack for the full breakdown</span>
+          </div>
         </div>
         {summary && <MoversStrip stacks={summary.stacks} />}
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
           {loading || !summary
             ? STACKS.map((s) => <TileSkeleton key={s} />)
-            : summary.stacks.map((s) => <StackTile key={s.stack} s={s} history={byStack.get(s.stack) ?? []} />)}
+            : summary.stacks.map((s) => (
+                <StackTile key={s.stack} s={s} history={byStack.get(s.stack) ?? []} onSelect={setSelected} />
+              ))}
         </div>
       </div>
+
+      <StackDetail stack={selected} onClose={() => setSelected(null)} />
     </section>
   );
 }
@@ -414,15 +424,23 @@ function Delta({ pct, suffix }: { pct: number | null; suffix?: string }) {
   );
 }
 
-function StackTile({ s, history }: { s: StackSummary; history: number[] }) {
+function StackTile({ s, history, onSelect }: { s: StackSummary; history: number[]; onSelect: (stack: Stack) => void }) {
   const noData = s.open_roles == null && s.captured === 0;
   const color = `var(${STACK_COLOR_VAR[s.stack]})`;
   return (
-    <div className="group relative overflow-hidden rounded-xl border border-line bg-card p-4 transition-colors hover:border-brand/60">
+    <button
+      type="button"
+      onClick={() => onSelect(s.stack)}
+      aria-label={`View ${s.stack} details`}
+      className="group relative w-full overflow-hidden rounded-xl border border-line bg-card p-4 text-left transition-all hover:-translate-y-0.5 hover:border-brand/60 hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/50"
+    >
       <div className="flex items-center justify-between gap-2">
-        <span className="inline-flex min-w-0 items-center gap-2 text-sm font-medium text-ink">
+        <span className="inline-flex min-w-0 items-center gap-1.5 text-sm font-medium text-ink">
           <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: `var(${STACK_COLOR_VAR[s.stack]})` }} />
           <span className="truncate">{s.stack}</span>
+          <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 shrink-0 text-muted opacity-0 transition-opacity group-hover:opacity-100" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+            <path d="m9 18 6-6-6-6" />
+          </svg>
         </span>
         {noData ? (
           <span className="shrink-0 rounded-full border border-dashed border-line px-2 py-0.5 text-[11px] font-medium text-muted">
@@ -469,7 +487,7 @@ function StackTile({ s, history }: { s: StackSummary; history: number[] }) {
           <span className="tabular-nums text-ink">{s.avg_applicants ?? "—"}</span> avg applicants
         </span>
       </div>
-    </div>
+    </button>
   );
 }
 

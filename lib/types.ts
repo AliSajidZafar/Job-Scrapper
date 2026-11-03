@@ -1,6 +1,8 @@
 // Shared domain types for the LinkedIn Job Market Intelligence Tool.
 // Mirrors the tables and views defined in supabase/schema.sql.
 
+import type { Seniority } from "./seniority";
+
 export const STACKS = [
   "SAP",
   "Salesforce",
@@ -153,4 +155,39 @@ export interface ApiResult<T> {
   configured: boolean;
   data: T;
   error?: string;
+}
+
+// One job inside a stack's detail view (GET /api/stack).
+export interface StackJob {
+  id: string;
+  linkedin_job_id: string;
+  title: string;
+  company: string;
+  location: string | null;
+  job_type: JobType | null;
+  applicant_count: number | null;
+  posted_at: string | null;
+  seniority: Seniority;
+  applicants_per_hour: number | null;
+}
+
+// GET /api/stack?stack=<name> — everything the per-stack drill-down shows.
+export interface StackDetail {
+  stack: Stack;
+  as_of: string | null; // latest scrape time for this stack (ISO)
+  open_roles: number | null; // LinkedIn's latest result total
+  prev_open_roles: number | null;
+  change_pct: number | null; // open roles vs the previous scrape day
+  captured: number; // jobs pulled in detail
+  applicants: {
+    withCount: number; // jobs that reported an applicant count
+    avg: number | null;
+    median: number | null;
+    max: number | null;
+    total: number;
+  };
+  seniority: Record<Seniority, number>; // job counts by experience level
+  trend: { day: string; open_roles: number | null; captured: number }[]; // oldest → newest
+  companies: { company: string; count: number; avg_applicants: number | null }[]; // top hirers
+  jobs: StackJob[]; // individual postings, fewest applicants first
 }
