@@ -17,6 +17,7 @@ import {
   type SummaryData,
   type TrendPoint,
 } from "@/lib/types";
+import { BANDS, BAND_BADGE, BAND_DOT, bandDef, bandOf, applicantLabel, type Band } from "@/lib/applicants";
 import { TrendChart } from "./TrendChart";
 import { Sparkline } from "./Sparkline";
 import { StackDetail } from "./StackDetail";
@@ -150,9 +151,9 @@ export function Dashboard({ user }: { user: SessionUser | null }) {
               </Card>
             )}
             {!loading && tab === "Opportunities" && <OpportunitiesView data={opps} filters={filters} />}
-            {!loading && tab === "Competition" && <CompetitionTable jobs={jobs} />}
+            {!loading && tab === "Competition" && <CompetitionTable jobs={jobs} filters={filters} />}
             {!loading && tab === "Company Map" && <CompanyMapTable rows={companyMap} />}
-            {!loading && tab === "Raw Feed" && <RawFeedTable jobs={jobs} />}
+            {!loading && tab === "Raw Feed" && <RawFeedTable jobs={jobs} filters={filters} />}
           </section>
         </div>
       </main>
@@ -685,12 +686,13 @@ function FilterBar({ filters, setFilters }: { filters: Filters; setFilters: (f: 
       stacks: filters.stacks.includes(s) ? filters.stacks.filter((x) => x !== s) : [...filters.stacks, s],
     });
 
-  const selectClass =
-    "rounded-lg border border-line bg-card px-2.5 py-1.5 text-xs text-ink outline-none focus:border-brand";
+  const active = filters.stacks.length || filters.jobType || filters.location || filters.easyApply;
 
   return (
-    <div className="flex flex-wrap items-center gap-2.5 rounded-xl border border-line bg-card p-3">
-      <div className="flex flex-wrap gap-1.5">
+    <div className="space-y-3 rounded-xl border border-line bg-card p-3">
+      {/* stacks */}
+      <div className="flex flex-wrap items-center gap-1.5">
+        <span className="mr-1 text-[11px] font-semibold uppercase tracking-wide text-muted">Stacks</span>
         {STACKS.map((s) => {
           const on = filters.stacks.includes(s);
           return (
@@ -701,73 +703,149 @@ function FilterBar({ filters, setFilters }: { filters: Filters; setFilters: (f: 
                 on ? "border-brand bg-brand text-brand-ink" : "border-line text-sub hover:text-ink"
               }`}
             >
-              <span
-                className="h-2 w-2 rounded-full"
-                style={{ background: on ? "currentColor" : `var(${STACK_COLOR_VAR[s]})` }}
-              />
+              <span className="h-2 w-2 rounded-full" style={{ background: on ? "currentColor" : `var(${STACK_COLOR_VAR[s]})` }} />
               {STACK_SHORT[s]}
             </button>
           );
         })}
       </div>
-      <div className="ml-auto flex flex-wrap items-center gap-2.5">
-        <select
-          value={filters.jobType}
-          onChange={(e) => setFilters({ ...filters, jobType: e.target.value as Filters["jobType"] })}
-          className={selectClass}
+
+      {/* job type + how-to-apply + location */}
+      <div className="flex flex-wrap items-end gap-x-5 gap-y-3 border-t border-line pt-3">
+        <FilterGroup label="Job type" help="Contract = fixed-term / C2C roles. Full-time = permanent positions. All shows both.">
+          <Segmented
+            value={filters.jobType}
+            onChange={(v) => setFilters({ ...filters, jobType: v as Filters["jobType"] })}
+            options={[
+              { value: "", label: "All" },
+              { value: "contract", label: "Contract" },
+              { value: "full_time", label: "Full-time" },
+            ]}
+          />
+        </FilterGroup>
+
+        <FilterGroup
+          label="How to apply"
+          help="Easy Apply = apply inside LinkedIn in a few clicks. External = the listing sends you to the company's own careers site. All shows both."
         >
-          <option value="">Any type</option>
-          <option value="contract">Contract</option>
-          <option value="full_time">Full-time</option>
-        </select>
-        <input
-          placeholder="Location…"
-          value={filters.location}
-          onChange={(e) => setFilters({ ...filters, location: e.target.value })}
-          className={`${selectClass} w-28 placeholder:text-muted`}
-        />
-        <select
-          value={filters.easyApply}
-          onChange={(e) => setFilters({ ...filters, easyApply: e.target.value as Filters["easyApply"] })}
-          className={selectClass}
-        >
-          <option value="">Easy Apply: any</option>
-          <option value="true">Easy Apply only</option>
-          <option value="false">Non Easy-Apply</option>
-        </select>
-        {(filters.stacks.length || filters.jobType || filters.location || filters.easyApply) && (
+          <Segmented
+            value={filters.easyApply}
+            onChange={(v) => setFilters({ ...filters, easyApply: v as Filters["easyApply"] })}
+            options={[
+              { value: "", label: "All" },
+              { value: "true", label: "Easy Apply" },
+              { value: "false", label: "External" },
+            ]}
+          />
+        </FilterGroup>
+
+        <FilterGroup label="Location">
+          <input
+            placeholder="City, state…"
+            value={filters.location}
+            onChange={(e) => setFilters({ ...filters, location: e.target.value })}
+            className="w-36 rounded-lg border border-line bg-plane px-2.5 py-1.5 text-xs text-ink outline-none placeholder:text-muted focus:border-brand"
+          />
+        </FilterGroup>
+
+        {active ? (
           <button
             onClick={() => setFilters(EMPTY_FILTERS)}
-            className="text-xs text-muted underline-offset-2 hover:text-ink hover:underline"
+            className="ml-auto self-end text-xs font-medium text-muted underline-offset-2 hover:text-ink hover:underline"
           >
-            Clear
+            Clear all
           </button>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
+// Labelled filter control with an optional info tooltip explaining the options.
+function FilterGroup({ label, help, children }: { label: string; help?: string; children: React.ReactNode }) {
+  return (
+    <div>
+      <div className="mb-1 flex items-center gap-1">
+        <span className="text-[11px] font-semibold uppercase tracking-wide text-muted">{label}</span>
+        {help && (
+          <span
+            title={help}
+            className="grid h-3.5 w-3.5 cursor-help place-items-center rounded-full border border-line text-[9px] font-bold leading-none text-muted"
+            aria-label={help}
+          >
+            i
+          </span>
         )}
       </div>
+      {children}
+    </div>
+  );
+}
+
+// Segmented button group — a clearer, one-tap alternative to a dropdown.
+function Segmented<T extends string>({
+  value,
+  onChange,
+  options,
+}: {
+  value: T;
+  onChange: (v: T) => void;
+  options: { value: T; label: string }[];
+}) {
+  return (
+    <div className="inline-flex rounded-lg border border-line bg-plane p-0.5" role="group">
+      {options.map((o) => (
+        <button
+          key={o.value}
+          onClick={() => onChange(o.value)}
+          aria-pressed={value === o.value}
+          className={`rounded-md px-2.5 py-1 text-xs font-medium transition-colors ${
+            value === o.value ? "bg-brand text-brand-ink shadow-sm" : "text-sub hover:text-ink"
+          }`}
+        >
+          {o.label}
+        </button>
+      ))}
     </div>
   );
 }
 
 /* --------------------------- opportunities -------------------------- */
 
-const THRESHOLDS = [10, 25, 50, 100] as const;
 const linkedinUrl = (id: string) => `https://www.linkedin.com/jobs/view/${id}`;
 
-// LinkedIn shows "Be among the first 25 applicants" for anything under 25, which
-// the scraper stores as 25 — so 25 really means "fewer than 25".
-const applicantsLabel = (n: number) => (n === 25 ? "<25" : n.toLocaleString());
-
-function matchesFilters(j: { stacks: Stack[]; location: string | null }, f: Filters) {
+// All Opportunities filters applied to a job (stack, location, type, how-to-apply).
+// FastJob rows don't carry job_type/easy_apply, so those two checks skip for them.
+function matchesFilters(
+  j: { stacks: Stack[]; location: string | null; job_type?: string | null; easy_apply?: boolean | null },
+  f: Filters,
+) {
   if (f.stacks.length && !j.stacks.some((s) => f.stacks.includes(s))) return false;
   if (f.location && !(j.location ?? "").toLowerCase().includes(f.location.toLowerCase())) return false;
+  if (f.jobType && j.job_type !== undefined && j.job_type !== f.jobType) return false;
+  if (f.easyApply && j.easy_apply !== undefined && j.easy_apply !== (f.easyApply === "true")) return false;
   return true;
 }
 
+// The fetched opportunity pool is capped at ≤100 applicants, so three bands:
+// Fresh (<25) / Low (25–50) / Busy (50–100). They never overlap.
+const OPP_BANDS = BANDS.slice(0, 3);
+
 function OpportunitiesView({ data, filters }: { data: OpportunitiesData | null; filters: Filters }) {
-  const [max, setMax] = useState<(typeof THRESHOLDS)[number]>(25);
+  const [band, setBand] = useState<Band>("fresh");
   if (!data || !data.as_of) return <Empty />;
 
-  const low = data.low.filter((j) => (j.applicant_count ?? Infinity) <= max && matchesFilters(j, filters));
+  const pool = data.low.filter((j) => j.applicant_count != null && matchesFilters(j, filters));
+  const inBand = (b: Band) => pool.filter((j) => bandOf(j.applicant_count!) === b);
+  const counts: Record<Band, number> = {
+    fresh: inBand("fresh").length,
+    low: inBand("low").length,
+    busy: inBand("busy").length,
+    crowded: 0,
+  };
+  const shown = inBand(band);
+  const def = bandDef(band);
+  const filtered = !!(filters.stacks.length || filters.jobType || filters.location || filters.easyApply);
   const fastest = data.fastest.filter((j) => matchesFilters(j, filters));
   const asOf = new Date(data.as_of).toLocaleString("en-GB", {
     timeZone: "Asia/Karachi",
@@ -780,34 +858,47 @@ function OpportunitiesView({ data, filters }: { data: OpportunitiesData | null; 
   return (
     <div className="grid gap-4 lg:grid-cols-3">
       <div className="rounded-xl border border-line bg-card lg:col-span-2">
-        <div className="flex flex-wrap items-start justify-between gap-3 border-b border-line px-5 py-4">
-          <div>
-            <h3 className="text-sm font-semibold text-ink">Low-competition jobs</h3>
-            <p className="mt-0.5 text-xs text-muted">
-              <span className="font-medium text-ink">{low.length}</span> of {data.scanned} jobs from the latest scrape
-              ({asOf} PKT) have {max === 25 ? "fewer than 25" : `${max} or fewer`} applicants. Apply early.
-            </p>
-          </div>
-          <div className="flex rounded-lg border border-line p-0.5" role="group" aria-label="Maximum applicants">
-            {THRESHOLDS.map((t) => (
-              <button
-                key={t}
-                onClick={() => setMax(t)}
-                className={`rounded-md px-2.5 py-1 text-xs font-medium tabular-nums transition-colors ${
-                  max === t ? "bg-brand text-brand-ink" : "text-sub hover:text-ink"
-                }`}
-              >
-                ≤{t}
-              </button>
-            ))}
+        <div className="border-b border-line px-5 py-4">
+          <h3 className="text-sm font-semibold text-ink">Jobs by competition</h3>
+          <p className="mt-0.5 text-xs text-muted">
+            <span className="font-medium text-ink tabular-nums">{pool.length}</span> low-competition jobs (≤100 applicants)
+            from the latest scrape ({asOf} PKT){filtered ? ", matching your filters" : ""}, grouped into separate applicant bands.
+          </p>
+
+          {/* mutually exclusive applicant bands — pick one */}
+          <div className="mt-3 grid grid-cols-3 gap-2" role="group" aria-label="Applicant band">
+            {OPP_BANDS.map((b) => {
+              const on = band === b.key;
+              return (
+                <button
+                  key={b.key}
+                  onClick={() => setBand(b.key)}
+                  title={b.blurb}
+                  aria-pressed={on}
+                  className={`rounded-lg border px-3 py-2 text-left transition-colors ${
+                    on ? "border-brand bg-brand-soft" : "border-line hover:border-brand/50"
+                  }`}
+                >
+                  <span className="flex items-center gap-1.5">
+                    <span className={`h-2 w-2 rounded-full ${BAND_DOT[b.key]}`} />
+                    <span className="text-xs font-semibold text-ink">{b.range}</span>
+                  </span>
+                  <span className="mt-0.5 block text-[11px] text-muted">
+                    <span className="font-medium tabular-nums text-ink">{counts[b.key]}</span> jobs · {b.name}
+                  </span>
+                </button>
+              );
+            })}
           </div>
         </div>
 
-        {low.length === 0 ? (
-          <p className="p-8 text-center text-sm text-muted">No jobs under this limit. Try a higher one.</p>
+        {shown.length === 0 ? (
+          <p className="p-8 text-center text-sm text-muted">
+            No jobs with {def.range} applicants{filtered ? " under these filters" : ""}. Try another band.
+          </p>
         ) : (
           <ul className="max-h-[560px] divide-y divide-line overflow-y-auto">
-            {low.map((j) => (
+            {shown.map((j) => (
               <li key={j.id} className="flex items-center gap-4 px-5 py-3 transition-colors hover:bg-brand-soft/40">
                 <div className="min-w-0 flex-1">
                   <a
@@ -867,7 +958,7 @@ function OpportunitiesView({ data, filters }: { data: OpportunitiesData | null; 
                   </a>
                   <div className="truncate text-xs text-sub">{j.company}</div>
                   <div className="mt-1 text-[11px] tabular-nums text-muted">
-                    {j.first_count != null ? applicantsLabel(j.first_count) : "?"} → {j.latest_count ?? "?"} applicants
+                    {j.first_count != null ? applicantLabel(j.first_count) : "?"} → {j.latest_count ?? "?"} applicants
                     {j.hours_tracked ? ` in ${Math.round(j.hours_tracked)}h` : ""}
                   </div>
                 </div>
@@ -883,64 +974,117 @@ function OpportunitiesView({ data, filters }: { data: OpportunitiesData | null; 
   );
 }
 
+// Applicant count coloured by its competition band (consistent app-wide).
 function ApplicantBadge({ n }: { n: number }) {
-  const tone = n <= 25 ? "bg-good/10 text-good" : n <= 50 ? "bg-brand-soft text-brand" : "bg-warn/10 text-warn";
+  const band = bandOf(n);
   return (
-    <span className={`inline-flex items-baseline gap-1 rounded-full px-2.5 py-1 text-xs font-semibold tabular-nums ${tone}`}>
-      {applicantsLabel(n)}
+    <span className={`inline-flex items-baseline gap-1 rounded-full px-2.5 py-1 text-xs font-semibold tabular-nums ${BAND_BADGE[band]}`}>
+      {applicantLabel(n)}
       <span className="font-normal opacity-80">applicants</span>
+    </span>
+  );
+}
+
+// Small word-chip naming the competition band (Fresh / Low / Busy / Crowded).
+function BandChip({ n }: { n: number }) {
+  const band = bandOf(n);
+  return (
+    <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold ${BAND_BADGE[band]}`}>
+      <span className={`h-1.5 w-1.5 rounded-full ${BAND_DOT[band]}`} />
+      {bandDef(band).name}
     </span>
   );
 }
 
 /* ------------------------------ tables ----------------------------- */
 
-function CompetitionTable({ jobs }: { jobs: Job[] }) {
-  if (!jobs.length) return <Empty />;
+// A visible read-out of the active filters + how many jobs match, so changing a
+// filter has an obvious effect on the data below.
+function JobsResultBar({ count, filters }: { count: number; filters: Filters }) {
+  const chips: string[] = [];
+  filters.stacks.forEach((s) => chips.push(STACK_SHORT[s]));
+  if (filters.jobType) chips.push(filters.jobType === "contract" ? "Contract" : "Full-time");
+  if (filters.easyApply) chips.push(filters.easyApply === "true" ? "Easy Apply" : "External");
+  if (filters.location) chips.push(`“${filters.location}”`);
   return (
-    <Table head={["Title", "Company", "Stack", "Location", "Applicants", "Applicants/hr", "Posted"]}>
-      {jobs.map((j) => (
-        <Row key={j.id}>
-          <Td className="font-medium text-ink">{j.title}</Td>
-          <Td>{j.company}</Td>
-          <Td>
-            <StackTags stacks={j.stacks} />
-          </Td>
-          <Td>{j.location}</Td>
-          <Td className="tabular-nums font-medium text-ink">{j.applicant_count ?? "—"}</Td>
-          <Td className="tabular-nums">{j.applicants_per_hour != null ? j.applicants_per_hour.toFixed(1) : "—"}</Td>
-          <Td className="tabular-nums">{j.posted_at ?? new Date(j.scraped_at).toLocaleDateString()}</Td>
-        </Row>
+    <div className="flex flex-wrap items-center gap-2 text-xs">
+      <span className="tabular-nums font-semibold text-ink">{count.toLocaleString()}</span>
+      <span className="text-muted">
+        job{count === 1 ? "" : "s"}
+        {chips.length ? " matching" : " · no filters applied"}
+      </span>
+      {chips.map((c, i) => (
+        <span key={i} className="rounded-full border border-line bg-plane px-2 py-0.5 text-[11px] font-medium text-sub">
+          {c}
+        </span>
       ))}
-    </Table>
+    </div>
   );
 }
 
-function RawFeedTable({ jobs }: { jobs: Job[] }) {
-  if (!jobs.length) return <Empty />;
+const jobTypeLabel = (t: Job["job_type"]) => (t === "full_time" ? "Full-time" : t === "contract" ? "Contract" : "—");
+
+function CompetitionTable({ jobs, filters }: { jobs: Job[]; filters: Filters }) {
   return (
     <div>
-      <div className="mb-2 flex justify-end">
-        <a href="/api/export" className="text-xs font-medium text-brand hover:underline">
+      <div className="mb-3">
+        <JobsResultBar count={jobs.length} filters={filters} />
+      </div>
+      {jobs.length === 0 ? (
+        <Empty />
+      ) : (
+        <Table head={["Title", "Company", "Stack", "Location", "Applicants", "Competition", "Applicants/hr", "Posted"]}>
+          {jobs.map((j) => (
+            <Row key={j.id}>
+              <Td className="font-medium text-ink">{j.title}</Td>
+              <Td>{j.company}</Td>
+              <Td>
+                <StackTags stacks={j.stacks} />
+              </Td>
+              <Td>{j.location}</Td>
+              <Td className="tabular-nums font-medium text-ink">
+                {j.applicant_count != null ? applicantLabel(j.applicant_count) : "—"}
+              </Td>
+              <Td>{j.applicant_count != null ? <BandChip n={j.applicant_count} /> : <span className="text-muted">—</span>}</Td>
+              <Td className="tabular-nums">{j.applicants_per_hour != null ? j.applicants_per_hour.toFixed(1) : "—"}</Td>
+              <Td className="tabular-nums">{j.posted_at ?? new Date(j.scraped_at).toLocaleDateString()}</Td>
+            </Row>
+          ))}
+        </Table>
+      )}
+    </div>
+  );
+}
+
+function RawFeedTable({ jobs, filters }: { jobs: Job[]; filters: Filters }) {
+  return (
+    <div>
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+        <JobsResultBar count={jobs.length} filters={filters} />
+        <a href="/api/export" className="shrink-0 text-xs font-medium text-brand hover:underline">
           Export CSV ↓
         </a>
       </div>
-      <Table head={["Title", "Company", "Stack(s)", "Location", "Type", "Easy Apply", "Applicants", "Scraped"]}>
-        {jobs.map((j) => (
-          <Row key={j.id}>
-            <Td className="font-medium text-ink">{j.title}</Td>
-            <Td>{j.company}</Td>
-            <Td>
-              <StackTags stacks={j.stacks} />
-            </Td>
-            <Td>{j.location}</Td>
-            <Td>{j.job_type ?? "—"}</Td>
-            <Td>{j.easy_apply ? "Yes" : "No"}</Td>
-            <Td className="tabular-nums">{j.applicant_count ?? "—"}</Td>
-            <Td className="tabular-nums">{new Date(j.scraped_at).toLocaleDateString()}</Td>
-          </Row>
-        ))}
-      </Table>
+      {jobs.length === 0 ? (
+        <Empty />
+      ) : (
+        <Table head={["Title", "Company", "Stack(s)", "Location", "Type", "Apply", "Applicants", "Scraped"]}>
+          {jobs.map((j) => (
+            <Row key={j.id}>
+              <Td className="font-medium text-ink">{j.title}</Td>
+              <Td>{j.company}</Td>
+              <Td>
+                <StackTags stacks={j.stacks} />
+              </Td>
+              <Td>{j.location}</Td>
+              <Td>{jobTypeLabel(j.job_type)}</Td>
+              <Td>{j.easy_apply === true ? "Easy Apply" : j.easy_apply === false ? "External" : "—"}</Td>
+              <Td className="tabular-nums">{j.applicant_count != null ? applicantLabel(j.applicant_count) : "—"}</Td>
+              <Td className="tabular-nums">{new Date(j.scraped_at).toLocaleDateString()}</Td>
+            </Row>
+          ))}
+        </Table>
+      )}
     </div>
   );
 }
