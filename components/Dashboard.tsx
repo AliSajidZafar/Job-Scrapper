@@ -115,7 +115,7 @@ export function Dashboard({ user }: { user: SessionUser | null }) {
         </div>
       </header>
 
-      <main className="mx-auto max-w-6xl space-y-8 px-4 py-8">
+      <main className="mx-auto max-w-6xl space-y-8 overflow-x-clip px-4 py-8 sm:py-8">
         {configured === false && <NotConfigured />}
 
         <SummarySection summary={summary} trend={trend} loading={loading && !summary} />
@@ -123,12 +123,13 @@ export function Dashboard({ user }: { user: SessionUser | null }) {
         <div>
           <FilterBar filters={filters} setFilters={setFilters} />
 
-          <nav className="mt-6 flex gap-1 border-b border-line">
+          {/* Tabs scroll horizontally on narrow screens so every tab is reachable. */}
+          <nav className="no-scrollbar mt-6 flex gap-1 overflow-x-auto border-b border-line">
             {TABS.map((t) => (
               <button
                 key={t}
                 onClick={() => setTab(t)}
-                className={`-mb-px border-b-2 px-4 py-2.5 text-sm font-medium transition-colors ${
+                className={`-mb-px shrink-0 whitespace-nowrap border-b-2 px-4 py-2.5 text-sm font-medium transition-colors ${
                   tab === t
                     ? "border-brand text-brand"
                     : "border-transparent text-muted hover:text-ink"
@@ -193,12 +194,17 @@ function SummarySection({
 
       <div>
         <div className="mb-3">
-          <div className="mb-1 text-right text-xs text-muted">
+          {/* desktop: the total-open-roles caption sits above, right-aligned */}
+          <div className="mb-1 hidden text-right text-xs text-muted sm:block">
             Total open roles on LinkedIn · last {totalByDay.length || "—"} days
           </div>
-          <div className="flex items-baseline justify-between gap-3">
+          <div className="flex flex-col gap-0.5 sm:flex-row sm:items-baseline sm:justify-between sm:gap-3">
             <h2 className="text-sm font-semibold uppercase tracking-wide text-muted">Demand by stack</h2>
-            <span className="text-xs text-muted">Select a stack for the full breakdown</span>
+            <span className="hidden text-xs text-muted sm:inline">Select a stack for the full breakdown</span>
+            {/* mobile: one compact caption under the heading */}
+            <span className="text-xs text-muted sm:hidden">
+              Total open roles · last {totalByDay.length || "—"} days · open a tile for details
+            </span>
           </div>
         </div>
         {summary && <MoversStrip stacks={summary.stacks} />}
@@ -433,13 +439,16 @@ function StackTile({ s, history, onSelect }: { s: StackSummary; history: number[
       type="button"
       onClick={() => onSelect(s.stack)}
       aria-label={`View ${s.stack} details`}
-      className="group relative w-full overflow-hidden rounded-xl border border-line bg-card p-4 text-left transition-all hover:-translate-y-0.5 hover:border-brand/60 hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/50"
+      className="group relative w-full overflow-hidden rounded-xl border border-line bg-card p-3 text-left transition-all hover:-translate-y-0.5 hover:border-brand/60 hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/50 sm:p-4"
     >
-      <div className="flex items-center justify-between gap-2">
+      <div className="flex items-center justify-between gap-1.5">
         <span className="inline-flex min-w-0 items-center gap-1.5 text-sm font-medium text-ink">
           <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: `var(${STACK_COLOR_VAR[s.stack]})` }} />
-          <span className="truncate">{s.stack}</span>
-          <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 shrink-0 text-muted opacity-0 transition-opacity group-hover:opacity-100" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+          <span className="truncate">
+            <span className="sm:hidden">{STACK_SHORT[s.stack]}</span>
+            <span className="hidden sm:inline">{s.stack}</span>
+          </span>
+          <svg viewBox="0 0 24 24" className="hidden h-3.5 w-3.5 shrink-0 text-muted opacity-0 transition-opacity group-hover:opacity-100 sm:block" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
             <path d="m9 18 6-6-6-6" />
           </svg>
         </span>
@@ -449,7 +458,7 @@ function StackTile({ s, history, onSelect }: { s: StackSummary; history: number[
           </span>
         ) : (
           s.max_applicants != null && (
-            <span className="shrink-0 rounded-full bg-brand-soft px-2 py-0.5 text-[11px] font-medium text-brand">
+            <span className="hidden shrink-0 rounded-full bg-brand-soft px-1.5 py-0.5 text-[10px] font-medium text-brand sm:inline-block sm:px-2 sm:text-[11px]">
               max {s.max_applicants}
             </span>
           )
@@ -856,8 +865,8 @@ function OpportunitiesView({ data, filters }: { data: OpportunitiesData | null; 
   });
 
   return (
-    <div className="grid gap-4 lg:grid-cols-3">
-      <div className="rounded-xl border border-line bg-card lg:col-span-2">
+    <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+      <div className="min-w-0 rounded-xl border border-line bg-card lg:col-span-2">
         <div className="border-b border-line px-5 py-4">
           <h3 className="text-sm font-semibold text-ink">Jobs by competition</h3>
           <p className="mt-0.5 text-xs text-muted">
@@ -1024,6 +1033,11 @@ function JobsResultBar({ count, filters }: { count: number; filters: Filters }) 
 
 const jobTypeLabel = (t: Job["job_type"]) => (t === "full_time" ? "Full-time" : t === "contract" ? "Contract" : "—");
 
+// A metadata line (label/value pairs) used on the mobile job cards.
+function CardMeta({ children }: { children: React.ReactNode }) {
+  return <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-muted">{children}</div>;
+}
+
 function CompetitionTable({ jobs, filters }: { jobs: Job[]; filters: Filters }) {
   return (
     <div>
@@ -1033,28 +1047,65 @@ function CompetitionTable({ jobs, filters }: { jobs: Job[]; filters: Filters }) 
       {jobs.length === 0 ? (
         <Empty />
       ) : (
-        <Table head={["Title", "Company", "Stack", "Location", "Applicants", "Competition", "Applicants/hr", "Posted"]}>
-          {jobs.map((j) => (
-            <Row key={j.id}>
-              <Td className="font-medium text-ink">{j.title}</Td>
-              <Td>{j.company}</Td>
-              <Td>
-                <StackTags stacks={j.stacks} />
-              </Td>
-              <Td>{j.location}</Td>
-              <Td className="tabular-nums font-medium text-ink">
-                {j.applicant_count != null ? applicantLabel(j.applicant_count) : "—"}
-              </Td>
-              <Td>{j.applicant_count != null ? <BandChip n={j.applicant_count} /> : <span className="text-muted">—</span>}</Td>
-              <Td className="tabular-nums">{j.applicants_per_hour != null ? j.applicants_per_hour.toFixed(1) : "—"}</Td>
-              <Td className="tabular-nums">{j.posted_at ?? new Date(j.scraped_at).toLocaleDateString()}</Td>
-            </Row>
-          ))}
-        </Table>
+        <>
+          {/* phone: cards */}
+          <ul className="space-y-2 sm:hidden">
+            {jobs.map((j) => (
+              <li key={j.id} className="rounded-xl border border-line bg-card p-3.5">
+                <div className="flex items-start justify-between gap-3">
+                  <p className="line-clamp-2 text-sm font-medium text-ink">{j.title}</p>
+                  {j.applicant_count != null && <BandChip n={j.applicant_count} />}
+                </div>
+                <p className="mt-0.5 truncate text-xs text-sub">
+                  {j.company}
+                  {j.location ? ` · ${j.location}` : ""}
+                </p>
+                <div className="mt-2">
+                  <StackTags stacks={j.stacks} />
+                </div>
+                <CardMeta>
+                  <span>
+                    <span className="tabular-nums font-medium text-ink">
+                      {j.applicant_count != null ? applicantLabel(j.applicant_count) : "—"}
+                    </span>{" "}
+                    applicants
+                  </span>
+                  {j.applicants_per_hour != null && (
+                    <span className="tabular-nums">{j.applicants_per_hour.toFixed(1)}/hr</span>
+                  )}
+                  <span className="ml-auto">{j.posted_at ?? new Date(j.scraped_at).toLocaleDateString()}</span>
+                </CardMeta>
+              </li>
+            ))}
+          </ul>
+          {/* tablet+ : table */}
+          <div className="hidden sm:block">
+            <Table head={["Title", "Company", "Stack", "Location", "Applicants", "Competition", "Applicants/hr", "Posted"]}>
+              {jobs.map((j) => (
+                <Row key={j.id}>
+                  <Td className="font-medium text-ink">{j.title}</Td>
+                  <Td>{j.company}</Td>
+                  <Td>
+                    <StackTags stacks={j.stacks} />
+                  </Td>
+                  <Td>{j.location}</Td>
+                  <Td className="tabular-nums font-medium text-ink">
+                    {j.applicant_count != null ? applicantLabel(j.applicant_count) : "—"}
+                  </Td>
+                  <Td>{j.applicant_count != null ? <BandChip n={j.applicant_count} /> : <span className="text-muted">—</span>}</Td>
+                  <Td className="tabular-nums">{j.applicants_per_hour != null ? j.applicants_per_hour.toFixed(1) : "—"}</Td>
+                  <Td className="tabular-nums">{j.posted_at ?? new Date(j.scraped_at).toLocaleDateString()}</Td>
+                </Row>
+              ))}
+            </Table>
+          </div>
+        </>
       )}
     </div>
   );
 }
+
+const applyLabel = (e: boolean | null) => (e === true ? "Easy Apply" : e === false ? "External" : "—");
 
 function RawFeedTable({ jobs, filters }: { jobs: Job[]; filters: Filters }) {
   return (
@@ -1068,22 +1119,50 @@ function RawFeedTable({ jobs, filters }: { jobs: Job[]; filters: Filters }) {
       {jobs.length === 0 ? (
         <Empty />
       ) : (
-        <Table head={["Title", "Company", "Stack(s)", "Location", "Type", "Apply", "Applicants", "Scraped"]}>
-          {jobs.map((j) => (
-            <Row key={j.id}>
-              <Td className="font-medium text-ink">{j.title}</Td>
-              <Td>{j.company}</Td>
-              <Td>
-                <StackTags stacks={j.stacks} />
-              </Td>
-              <Td>{j.location}</Td>
-              <Td>{jobTypeLabel(j.job_type)}</Td>
-              <Td>{j.easy_apply === true ? "Easy Apply" : j.easy_apply === false ? "External" : "—"}</Td>
-              <Td className="tabular-nums">{j.applicant_count != null ? applicantLabel(j.applicant_count) : "—"}</Td>
-              <Td className="tabular-nums">{new Date(j.scraped_at).toLocaleDateString()}</Td>
-            </Row>
-          ))}
-        </Table>
+        <>
+          {/* phone: cards */}
+          <ul className="space-y-2 sm:hidden">
+            {jobs.map((j) => (
+              <li key={j.id} className="rounded-xl border border-line bg-card p-3.5">
+                <p className="line-clamp-2 text-sm font-medium text-ink">{j.title}</p>
+                <p className="mt-0.5 truncate text-xs text-sub">
+                  {j.company}
+                  {j.location ? ` · ${j.location}` : ""}
+                </p>
+                <div className="mt-2">
+                  <StackTags stacks={j.stacks} />
+                </div>
+                <CardMeta>
+                  <span>{jobTypeLabel(j.job_type)}</span>
+                  <span>· {applyLabel(j.easy_apply)}</span>
+                  <span>
+                    · <span className="tabular-nums font-medium text-ink">{j.applicant_count != null ? applicantLabel(j.applicant_count) : "—"}</span> appl.
+                  </span>
+                  <span className="ml-auto">{new Date(j.scraped_at).toLocaleDateString()}</span>
+                </CardMeta>
+              </li>
+            ))}
+          </ul>
+          {/* tablet+ : table */}
+          <div className="hidden sm:block">
+            <Table head={["Title", "Company", "Stack(s)", "Location", "Type", "Apply", "Applicants", "Scraped"]}>
+              {jobs.map((j) => (
+                <Row key={j.id}>
+                  <Td className="font-medium text-ink">{j.title}</Td>
+                  <Td>{j.company}</Td>
+                  <Td>
+                    <StackTags stacks={j.stacks} />
+                  </Td>
+                  <Td>{j.location}</Td>
+                  <Td>{jobTypeLabel(j.job_type)}</Td>
+                  <Td>{applyLabel(j.easy_apply)}</Td>
+                  <Td className="tabular-nums">{j.applicant_count != null ? applicantLabel(j.applicant_count) : "—"}</Td>
+                  <Td className="tabular-nums">{new Date(j.scraped_at).toLocaleDateString()}</Td>
+                </Row>
+              ))}
+            </Table>
+          </div>
+        </>
       )}
     </div>
   );
@@ -1092,25 +1171,51 @@ function RawFeedTable({ jobs, filters }: { jobs: Job[]; filters: Filters }) {
 function CompanyMapTable({ rows }: { rows: CompanyStackRow[] }) {
   if (!rows.length) return <Empty />;
   return (
-    <Table head={["Company", ...STACKS.map((s) => STACK_SHORT[s]), "Total"]}>
-      {rows.map((r) => (
-        <Row key={r.company}>
-          <Td className="font-medium text-ink">{r.company}</Td>
-          {STACKS.map((s) => (
-            <Td key={s} className="text-center tabular-nums">
-              {r.counts[s] ? (
-                <span className="inline-flex h-6 min-w-6 items-center justify-center rounded-md bg-brand-soft px-1.5 text-xs font-medium text-brand">
-                  {r.counts[s]}
+    <>
+      {/* phone: one card per company with its stack counts */}
+      <ul className="space-y-2 sm:hidden">
+        {rows.map((r) => (
+          <li key={r.company} className="rounded-xl border border-line bg-card p-3.5">
+            <div className="flex items-center justify-between gap-3">
+              <p className="truncate text-sm font-medium text-ink">{r.company}</p>
+              <span className="shrink-0 rounded-full bg-brand-soft px-2 py-0.5 text-xs font-semibold tabular-nums text-brand">
+                {r.total} total
+              </span>
+            </div>
+            <div className="mt-2 flex flex-wrap gap-1.5">
+              {STACKS.filter((s) => r.counts[s]).map((s) => (
+                <span key={s} className="inline-flex items-center gap-1 rounded-full border border-line px-1.5 py-0.5 text-[11px] text-sub">
+                  <span className="h-1.5 w-1.5 rounded-full" style={{ background: `var(${STACK_COLOR_VAR[s]})` }} />
+                  {STACK_SHORT[s]} <span className="font-semibold tabular-nums text-ink">{r.counts[s]}</span>
                 </span>
-              ) : (
-                <span className="text-muted">·</span>
-              )}
-            </Td>
+              ))}
+            </div>
+          </li>
+        ))}
+      </ul>
+      {/* tablet+ : the full matrix */}
+      <div className="hidden sm:block">
+        <Table head={["Company", ...STACKS.map((s) => STACK_SHORT[s]), "Total"]}>
+          {rows.map((r) => (
+            <Row key={r.company}>
+              <Td className="font-medium text-ink">{r.company}</Td>
+              {STACKS.map((s) => (
+                <Td key={s} className="text-center tabular-nums">
+                  {r.counts[s] ? (
+                    <span className="inline-flex h-6 min-w-6 items-center justify-center rounded-md bg-brand-soft px-1.5 text-xs font-medium text-brand">
+                      {r.counts[s]}
+                    </span>
+                  ) : (
+                    <span className="text-muted">·</span>
+                  )}
+                </Td>
+              ))}
+              <Td className="text-center tabular-nums font-semibold text-ink">{r.total}</Td>
+            </Row>
           ))}
-          <Td className="text-center tabular-nums font-semibold text-ink">{r.total}</Td>
-        </Row>
-      ))}
-    </Table>
+        </Table>
+      </div>
+    </>
   );
 }
 
