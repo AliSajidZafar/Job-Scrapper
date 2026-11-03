@@ -6,8 +6,9 @@ import { STACKS, type ApiResult, type JobType, type StackDetail, type StackJob, 
 // GET /api/stack?stack=<name> — the per-stack drill-down: demand history,
 // applicant competition, experience-level split, top hirers and the job list.
 // Everything is read live from Supabase, so it's as fresh as the latest scrape.
+// The full tracked set is returned (not a slice), so the drawer's list length
+// always equals the "tracked" count shown on the tile and in the header.
 const COMPANY_LIMIT = 8;
-const JOB_LIMIT = 80;
 
 export async function GET(req: NextRequest) {
   const supabase = getSupabaseServer();
@@ -133,7 +134,7 @@ export async function GET(req: NextRequest) {
     seniority,
     trend,
     companies,
-    jobs: jobs.slice(0, JOB_LIMIT),
+    jobs, // every tracked posting, so the list matches `captured` exactly
   };
 
   return Response.json({ configured: true, data: detail } satisfies ApiResult<StackDetail | null>);
