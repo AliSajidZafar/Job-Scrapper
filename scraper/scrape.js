@@ -50,6 +50,25 @@ function parseApplicantCount(text) {
   return m ? parseInt(m[1], 10) : null;
 }
 
+// Employment type from the detail page's "Employment type" criterion. Mapped to
+// the two types we track; anything else (part-time, internship) -> null.
+function parseEmploymentType(text) {
+  const t = (text || "").toLowerCase();
+  if (t.includes("contract") || t.includes("temporary")) return "contract";
+  if (t.includes("full-time") || t.includes("full time")) return "full_time";
+  return null;
+}
+
+// Apply route from the guest apply button's tracking name: LinkedIn marks
+// `apply-link-onsite` for Easy Apply (apply on LinkedIn) and `apply-link-offsite`
+// for external (apply on the company's site). Unknown -> null.
+function parseEasyApply(track) {
+  if (!track) return null;
+  if (/offsite/i.test(track)) return false;
+  if (/onsite/i.test(track)) return true;
+  return null;
+}
+
 // Pull the result total from the page <title> ("... (1,000+ Open Roles)") first
 // — most reliable — then fall back to the on-page results header text.
 function parseResultsCount(text) {
@@ -140,13 +159,16 @@ async function scrapeStack(page, stack) {
 
   const jobs = [...byId.values()].map((j) => ({
     ...j,
-    easy_apply: config.filters.easyApplyOnly,
-    job_type: null, // both types selected in one search — not distinguishable here
+    easy_apply: null, // filled from the detail page (on-site apply = Easy Apply)
+    job_type: null, // filled from the detail page "Employment type" criterion
     applicant_count: null,
     stack: stack.name,
   }));
 
-  // Applicant count per job (suggestion #3 feeds off this), from detail pages.
+  // Per-job detail page. In one visit we read the applicant count, the employment
+  // type (Contract / Full-time) and the apply route (on-site = Easy Apply,
+  // off-site = external), so the dashboard filters run on real per-job data
+  // instead of a stamped guess.
   if (config.limits.fetchApplicantCounts !== false) {
     for (const job of jobs) {
       try {
@@ -154,9 +176,33 @@ async function scrapeStack(page, stack) {
           waitUntil: "domcontentloaded",
         });
         await randomDelay(config.limits.pageDelayMs);
-        job.applicant_count = parseApplicantCount(await textOf(page, SELECTORS.applicants));
+        const d = await page.evaluate(() => {
+          const pick = (sel) => {
+            const n = document.querySelector(sel);
+            return n ? n.textContent.trim() : "";
+          };
+          let employment = "";
+          for (const item of document.querySelectorAll(".description__job-criteria-item")) {
+            const h = (item.querySelector(".description__job-criteria-subheader, h3")?.textContent || "")
+              .trim()
+              .toLowerCase();
+            if (h.includes("employment type")) {
+              employment = (item.querySelector(".description__job-criteria-text, span")?.textContent || "").trim();
+              break;
+            }
+          }
+          const applyEl = document.querySelector('[data-tracking-control-name*="apply-link"]');
+          return {
+            applicants: pick("figcaption.num-applicants__caption, .num-applicants__caption"),
+            employment,
+            applyTrack: applyEl ? applyEl.getAttribute("data-tracking-control-name") || "" : "",
+          };
+        });
+        job.applicant_count = parseApplicantCount(d.applicants);
+        job.job_type = parseEmploymentType(d.employment);
+        job.easy_apply = parseEasyApply(d.applyTrack);
       } catch {
-        // leave applicant_count null on a failed detail load
+        // leave detail fields null on a failed detail load
       }
     }
   }

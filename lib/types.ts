@@ -64,7 +64,7 @@ export interface Job {
   company: string;
   location: string | null;
   job_type: JobType | null;
-  easy_apply: boolean;
+  easy_apply: boolean | null; // null = apply route unknown (older rows / failed detail)
   applicant_count: number | null;
   posted_at: string | null; // ISO date
   scraped_at: string; // ISO timestamp

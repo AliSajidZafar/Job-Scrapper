@@ -10,6 +10,7 @@ import {
   type TrendPoint,
 } from "@/lib/types";
 import { SENIORITY_LABEL, SENIORITY_ORDER, type Seniority } from "@/lib/seniority";
+import { bandOf, BAND_BADGE, applicantLabel } from "@/lib/applicants";
 import { TrendChart } from "./TrendChart";
 
 // Slide-over drill-down for a single tech stack. Opens when `stack` is set,
@@ -296,12 +297,11 @@ function SeniorityTag({ s }: { s: Seniority }) {
   );
 }
 
-const applLabel = (n: number) => (n === 25 ? "<25" : n.toLocaleString());
+const applLabel = applicantLabel;
 
 function ApplicantBadge({ n }: { n: number }) {
-  const tone = n <= 25 ? "bg-good/10 text-good" : n <= 50 ? "bg-brand-soft text-brand" : "bg-warn/10 text-warn";
   return (
-    <span className={`inline-flex items-baseline gap-1 rounded-full px-2 py-0.5 text-xs font-semibold tabular-nums ${tone}`}>
+    <span className={`inline-flex items-baseline gap-1 rounded-full px-2 py-0.5 text-xs font-semibold tabular-nums ${BAND_BADGE[bandOf(n)]}`}>
       {applLabel(n)}
       <span className="font-normal opacity-80">appl.</span>
     </span>

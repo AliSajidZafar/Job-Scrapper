@@ -34,7 +34,10 @@ module.exports = {
     location: "United States",
     remote: true, // include Remote workplace type
     jobTypes: ["contract", "full_time"],
-    easyApplyOnly: true, // set false to measure true demand (see README notes)
+    // Capture BOTH Easy Apply and external listings (true demand), and detect
+    // each job's real apply route + employment type from its detail page. Set
+    // true again to restrict the search to Easy Apply only.
+    easyApplyOnly: false,
   },
 
   // Safety / pacing. Keep these conservative — a dedicated secondary account only.
