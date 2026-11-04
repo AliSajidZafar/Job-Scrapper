@@ -10,7 +10,7 @@ module.exports = {
   stacks: [
     { name: "SAP", query: "SAP", match: [/\bSAP\b/i] },
     { name: "Salesforce", query: "Salesforce", match: [/salesforce/i] },
-    { name: "MERN", query: '"MERN"', match: [/\bMERN\b/i, /mongo.*express.*react.*node/i] },
+    { name: "MERN", query: '"MERN"', match: [/\bMERN\b/i, /\bmongo/i, /(?=[\s\S]*\breact)(?=[\s\S]*\bnode)/i], trustSearch: true },
     { name: ".NET", query: '".NET"', match: [/\.NET\b/i, /\bC#\b/i, /\bASP\.NET\b/i] },
     { name: "Java", query: '"Java" NOT "JavaScript"', match: [/\bjava\b/i] },
     { name: "ServiceNow", query: "ServiceNow", match: [/service\s?now/i] },
@@ -28,19 +28,20 @@ module.exports = {
     },
     // Niche / specialist stacks (set 2). Queries are quoted phrases to cut noise;
     // match runs against the job TITLE, so each pattern targets dedicated roles.
-    { name: "Rust", query: '"Rust"', match: [/\brust\b/i] },
-    { name: "Elixir", query: '"Elixir"', match: [/\belixir\b/i, /\berlang\b/i, /phoenix/i] },
+    { name: "Rust", query: '"Rust"', match: [/\brust\b/i], trustSearch: true },
+    { name: "Elixir", query: '"Elixir"', match: [/\belixir\b/i, /\berlang\b/i, /phoenix/i], trustSearch: true },
     { name: "C++", query: '"C++"', match: [/\bc\+\+/i, /\bcpp\b/i] },
-    { name: "Haskell", query: '"Haskell"', match: [/\bhaskell\b/i, /\bocaml\b/i, /\bscala\b/i] },
+    { name: "Haskell", query: '"Haskell"', match: [/\bhaskell\b/i, /\bocaml\b/i, /\bscala\b/i], trustSearch: true },
     { name: "SRE", query: '"Site Reliability Engineer"', match: [/site reliability/i, /\bSRE\b/] },
     { name: "Embedded", query: '"Embedded"', match: [/\bembedded\b/i, /\bfirmware\b/i, /\bRTOS\b/i, /microcontroller/i] },
     { name: "GIS", query: '"GIS"', match: [/\bGIS\b/, /geospatial/i, /\bPostGIS\b/i, /\bArcGIS\b/i] },
     { name: "COBOL", query: '"COBOL"', match: [/\bcobol\b/i, /\bmainframe\b/i, /z\/OS/i, /\bJCL\b/] },
-    { name: "CUDA", query: '"CUDA"', match: [/\bcuda\b/i, /GPU kernel/i, /\bTriton\b/, /\bPTX\b/] },
+    { name: "CUDA", query: '"CUDA"', match: [/\bcuda\b/i, /GPU kernel/i, /\bTriton\b/, /\bPTX\b/], trustSearch: true },
     {
       name: "Edge AI",
       query: '"Edge AI"',
       match: [/edge ai/i, /on-device/i, /tensorflow lite/i, /\bTFLite\b/i, /\bONNX\b/i, /\bCoreML\b/i],
+      trustSearch: true,
     },
   ],
 
