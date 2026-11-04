@@ -129,19 +129,22 @@ async function scrapeStack(page, stack) {
     parseResultsCount(await page.title()) ??
     parseResultsCount(await textOf(page, SELECTORS.resultsCount));
 
-  // Collect cards, loading more until we hit the cap or the list stops growing.
-  const cap = config.limits.maxJobsPerStack;
+  // Collect candidate cards. For trustSearch stacks we skip the title pre-filter
+  // and scan a larger pool, because the real roles are scattered among loosely-
+  // matched padding that the detail pass verifies away below.
+  const target = config.limits.maxJobsPerStack;
+  const candidateCap = stack.trustSearch ? target * 2 : target;
   const byId = new Map();
   let stagnant = 0;
 
-  while (byId.size < cap) {
+  while (byId.size < candidateCap) {
     for (const c of await readCards(page)) {
-      if (byId.size >= cap) break;
+      if (byId.size >= candidateCap) break;
       if (!c.linkedin_job_id || byId.has(c.linkedin_job_id)) continue;
-      if (!stackMatches(stack, c.title)) continue; // keyword noise filter
+      if (!stack.trustSearch && !stackMatches(stack, c.title)) continue; // title noise filter
       byId.set(c.linkedin_job_id, c);
     }
-    if (byId.size >= cap) break;
+    if (byId.size >= candidateCap) break;
 
     const before = (await page.$$(SELECTORS.jobCard)).length;
     const moreBtn = await page.$(SELECTORS.seeMore);
@@ -157,24 +160,18 @@ async function scrapeStack(page, stack) {
     }
   }
 
-  const jobs = [...byId.values()].map((j) => ({
-    ...j,
-    easy_apply: null, // filled from the detail page (on-site apply = Easy Apply)
-    job_type: null, // filled from the detail page "Employment type" criterion
-    applicant_count: null,
-    stack: stack.name,
-  }));
+  const candidates = [...byId.values()];
+  const jobs = [];
 
-  // Per-job detail page. In one visit we read the applicant count, the employment
-  // type (Contract / Full-time) and the apply route (on-site = Easy Apply,
-  // off-site = external), so the dashboard filters run on real per-job data
-  // instead of a stamped guess.
+  // Per-job detail page: applicant count, employment type (Contract/Full-time),
+  // the apply route (on-site = Easy Apply) and the description. For trustSearch
+  // stacks we verify the description really mentions the stack and drop padding,
+  // stopping once we have `target` genuine roles.
   if (config.limits.fetchApplicantCounts !== false) {
-    for (const job of jobs) {
+    for (const c of candidates) {
+      if (jobs.length >= target) break;
       try {
-        await page.goto(`${BASE}/jobs/view/${job.linkedin_job_id}`, {
-          waitUntil: "domcontentloaded",
-        });
+        await page.goto(`${BASE}/jobs/view/${c.linkedin_job_id}`, { waitUntil: "domcontentloaded" });
         await randomDelay(config.limits.pageDelayMs);
         const d = await page.evaluate(() => {
           const pick = (sel) => {
@@ -196,19 +193,34 @@ async function scrapeStack(page, stack) {
             applicants: pick("figcaption.num-applicants__caption, .num-applicants__caption"),
             employment,
             applyTrack: applyEl ? applyEl.getAttribute("data-tracking-control-name") || "" : "",
+            // Main job description only (not the "people also viewed" sidebar).
+            description: pick(".show-more-less-html__markup, .description__text"),
           };
         });
-        job.applicant_count = parseApplicantCount(d.applicants);
-        job.job_type = parseEmploymentType(d.employment);
-        job.easy_apply = parseEasyApply(d.applyTrack);
+        // trustSearch: confirm the role really is about this stack (title +
+        // description), dropping LinkedIn's padding (e.g. a "Cook" under "Elixir").
+        if (stack.trustSearch && !stackMatches(stack, `${c.title} ${d.description || ""}`)) continue;
+        jobs.push({
+          ...c,
+          stack: stack.name,
+          applicant_count: parseApplicantCount(d.applicants),
+          job_type: parseEmploymentType(d.employment),
+          easy_apply: parseEasyApply(d.applyTrack),
+        });
       } catch {
-        // leave detail fields null on a failed detail load
+        // skip this job on a failed detail load
       }
+    }
+  } else {
+    // No detail fetch: can't verify, so take candidates as-is up to target.
+    for (const c of candidates.slice(0, target)) {
+      jobs.push({ ...c, stack: stack.name, applicant_count: null, job_type: null, easy_apply: null });
     }
   }
 
   console.log(
     `    ✓ ${stack.name}: ${jobs.length} jobs captured` +
+      (stack.trustSearch ? ` (scanned ${candidates.length})` : "") +
       (totalResults != null ? ` of ${totalResults} total results` : ""),
   );
   return { jobs, totalResults };
