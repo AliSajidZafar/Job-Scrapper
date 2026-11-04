@@ -26,6 +26,22 @@ module.exports = {
       query: '"Machine Learning"',
       match: [/machine learning/i, /\bML\s?Ops\b/i, /\b(ML|AI) engineer/i, /deep learning/i],
     },
+    // Niche / specialist stacks (set 2). Queries are quoted phrases to cut noise;
+    // match runs against the job TITLE, so each pattern targets dedicated roles.
+    { name: "Rust", query: '"Rust"', match: [/\brust\b/i] },
+    { name: "Elixir", query: '"Elixir"', match: [/\belixir\b/i, /\berlang\b/i, /phoenix/i] },
+    { name: "C++", query: '"C++"', match: [/\bc\+\+/i, /\bcpp\b/i] },
+    { name: "Haskell", query: '"Haskell"', match: [/\bhaskell\b/i, /\bocaml\b/i, /\bscala\b/i] },
+    { name: "SRE", query: '"Site Reliability Engineer"', match: [/site reliability/i, /\bSRE\b/] },
+    { name: "Embedded", query: '"Embedded"', match: [/\bembedded\b/i, /\bfirmware\b/i, /\bRTOS\b/i, /microcontroller/i] },
+    { name: "GIS", query: '"GIS"', match: [/\bGIS\b/, /geospatial/i, /\bPostGIS\b/i, /\bArcGIS\b/i] },
+    { name: "COBOL", query: '"COBOL"', match: [/\bcobol\b/i, /\bmainframe\b/i, /z\/OS/i, /\bJCL\b/] },
+    { name: "CUDA", query: '"CUDA"', match: [/\bcuda\b/i, /GPU kernel/i, /\bTriton\b/, /\bPTX\b/] },
+    {
+      name: "Edge AI",
+      query: '"Edge AI"',
+      match: [/edge ai/i, /on-device/i, /tensorflow lite/i, /\bTFLite\b/i, /\bONNX\b/i, /\bCoreML\b/i],
+    },
   ],
 
   // Filters applied to every search (LinkedIn URL query params).
@@ -44,7 +60,11 @@ module.exports = {
   limits: {
     // Env override (MAX_JOBS_PER_STACK) lets a one-off catch-up run use a smaller
     // cap when LinkedIn detail pages are slow; the scheduled run uses the default.
-    maxJobsPerStack: Number(process.env.MAX_JOBS_PER_STACK) || 25, // hard cap per stack per run
+    // With 20 stacks a full run visits many detail pages, so the default per-stack
+    // cap is 15 to keep the nightly run to a reasonable length. Open-role totals
+    // (true demand) are captured regardless of the cap; this only bounds the
+    // detailed sample. Override with MAX_JOBS_PER_STACK for a one-off.
+    maxJobsPerStack: Number(process.env.MAX_JOBS_PER_STACK) || 15, // hard cap per stack per run
     fetchApplicantCounts: true, // visit each job's detail page for applicant count (slower)
     pageDelayMs: [2000, 5000], // random delay between page loads [min, max]
     stackDelayMs: [5000, 10000], // random delay between stacks [min, max]
