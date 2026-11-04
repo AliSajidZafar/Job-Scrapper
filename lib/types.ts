@@ -14,6 +14,17 @@ export const STACKS = [
   "Data Engineering",
   "DevOps",
   "AI / ML",
+  // Niche / specialist stacks (set 2) — low-competition, high-barrier markets.
+  "Rust",
+  "Elixir",
+  "C++",
+  "Haskell",
+  "SRE",
+  "Embedded",
+  "GIS",
+  "COBOL",
+  "CUDA",
+  "Edge AI",
 ] as const;
 export type Stack = (typeof STACKS)[number];
 
@@ -31,6 +42,16 @@ export const STACK_COLOR_VAR: Record<Stack, string> = {
   "Data Engineering": "--s-data",
   DevOps: "--s-devops",
   "AI / ML": "--s-ml",
+  Rust: "--s-rust",
+  Elixir: "--s-elixir",
+  "C++": "--s-cpp",
+  Haskell: "--s-haskell",
+  SRE: "--s-sre",
+  Embedded: "--s-embedded",
+  GIS: "--s-gis",
+  COBOL: "--s-cobol",
+  CUDA: "--s-cuda",
+  "Edge AI": "--s-edgeai",
 };
 
 // Compact labels for tight spots (tiles, filter pills, chart legends).
@@ -45,6 +66,16 @@ export const STACK_SHORT: Record<Stack, string> = {
   "Data Engineering": "Data Eng",
   DevOps: "DevOps",
   "AI / ML": "AI / ML",
+  Rust: "Rust",
+  Elixir: "Elixir",
+  "C++": "C++",
+  Haskell: "Haskell",
+  SRE: "SRE",
+  Embedded: "Embedded",
+  GIS: "GIS",
+  COBOL: "COBOL",
+  CUDA: "CUDA",
+  "Edge AI": "Edge AI",
 };
 
 export type JobType = "contract" | "full_time";
