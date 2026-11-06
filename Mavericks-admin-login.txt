@@ -2,7 +2,7 @@ Mavericks Market Intelligence — admin login
 
 Sign-in page: https://jobs.mavericksunited.co/admin/login
 Name:         Mavericks
-Email:        admin@mavericksunited.co
+Email:        kaleem@maverickslabs.io
 Password:     -Mnhtx-jdh%_9rMgBWec
 
 Save these in a password manager, then delete this file.
