@@ -27,14 +27,31 @@ import { ThemeToggle } from "./ThemeToggle";
 const TABS = ["Trend", "Opportunities", "Competition", "Company Map", "Raw Feed"] as const;
 type Tab = (typeof TABS)[number];
 
+// Date-range (freshness) filter options. Values are how many days back to
+// include, measured from now against each job's scraped_at. "" means no limit.
+type DateRange = "" | "latest" | "7d" | "9d" | "30d";
+const DATE_RANGE_DAYS: Record<Exclude<DateRange, "">, number> = {
+  latest: 1, // the most recent fetch window (past 24h)
+  "7d": 7,
+  "9d": 9,
+  "30d": 30,
+};
+const DATE_RANGE_LABEL: Record<Exclude<DateRange, "">, string> = {
+  latest: "Latest",
+  "7d": "Past 7 days",
+  "9d": "Past 9 days",
+  "30d": "Past 30 days",
+};
+
 interface Filters {
   stacks: Stack[];
   jobType: "" | "contract" | "full_time";
   location: string;
   easyApply: "" | "true" | "false";
+  dateRange: DateRange;
 }
 
-const EMPTY_FILTERS: Filters = { stacks: [], jobType: "", location: "", easyApply: "" };
+const EMPTY_FILTERS: Filters = { stacks: [], jobType: "", location: "", easyApply: "", dateRange: "" };
 
 export function Dashboard({ user }: { user: SessionUser | null }) {
   const [tab, setTab] = useState<Tab>("Trend");
@@ -56,6 +73,10 @@ export function Dashboard({ user }: { user: SessionUser | null }) {
       if (filters.jobType) p.set("jobType", filters.jobType);
       if (filters.location) p.set("location", filters.location);
       if (filters.easyApply) p.set("easyApply", filters.easyApply);
+      if (filters.dateRange) {
+        const days = DATE_RANGE_DAYS[filters.dateRange];
+        p.set("from", new Date(Date.now() - days * 86_400_000).toISOString());
+      }
       p.set("sort", sort);
       return `/api/jobs?${p.toString()}`;
     },
@@ -371,6 +392,12 @@ const pctChangeLocal = (from: number, to: number) =>
 
 const shortDate = (iso: string) =>
   new Date(`${iso.slice(0, 10)}T12:00:00Z`).toLocaleDateString("en-GB", { day: "numeric", month: "short" });
+
+// The date a job was posted (falls back to when we scraped it). The YYYY-MM-DD
+// slice sorts chronologically as a plain string and renders in one consistent
+// format, so the Competition "Posted" column reads in order.
+const postedKey = (j: { posted_at: string | null; scraped_at: string }) =>
+  (j.posted_at ?? j.scraped_at).slice(0, 10);
 
 // Biggest riser / faller in open roles since the previous scrape day.
 function MoversStrip({ stacks }: { stacks: StackSummary[] }) {
@@ -695,13 +722,13 @@ function FilterBar({ filters, setFilters }: { filters: Filters; setFilters: (f: 
       stacks: filters.stacks.includes(s) ? filters.stacks.filter((x) => x !== s) : [...filters.stacks, s],
     });
 
-  const active = filters.stacks.length || filters.jobType || filters.location || filters.easyApply;
+  const active =
+    filters.stacks.length || filters.jobType || filters.location || filters.easyApply || filters.dateRange;
 
   return (
     <div className="space-y-3 rounded-xl border border-line bg-card p-3">
-      {/* stacks */}
-      <div className="flex flex-wrap items-center gap-1.5">
-        <span className="mr-1 text-[11px] font-semibold uppercase tracking-wide text-muted">Stacks</span>
+      {/* stacks — exactly 10 per row (fewer on small screens), left-aligned pills */}
+      <div className="grid grid-cols-3 justify-items-start gap-1.5 min-[480px]:grid-cols-5 sm:grid-cols-10">
         {STACKS.map((s) => {
           const on = filters.stacks.includes(s);
           return (
@@ -712,16 +739,30 @@ function FilterBar({ filters, setFilters }: { filters: Filters; setFilters: (f: 
                 on ? "border-brand bg-brand text-brand-ink" : "border-line text-sub hover:text-ink"
               }`}
             >
-              <span className="h-2 w-2 rounded-full" style={{ background: on ? "currentColor" : `var(${STACK_COLOR_VAR[s]})` }} />
+              <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: on ? "currentColor" : `var(${STACK_COLOR_VAR[s]})` }} />
               {STACK_SHORT[s]}
             </button>
           );
         })}
       </div>
 
-      {/* job type + how-to-apply + location */}
+      {/* date range + job type + how-to-apply + location */}
       <div className="flex flex-wrap items-end gap-x-5 gap-y-3 border-t border-line pt-3">
-        <FilterGroup label="Job type" help="Contract = fixed-term / C2C roles. Full-time = permanent positions. All shows both.">
+        <FilterGroup label="Date">
+          <Segmented
+            value={filters.dateRange}
+            onChange={(v) => setFilters({ ...filters, dateRange: v as Filters["dateRange"] })}
+            options={[
+              { value: "", label: "All" },
+              { value: "latest", label: "Latest" },
+              { value: "7d", label: "7 days" },
+              { value: "9d", label: "9 days" },
+              { value: "30d", label: "30 days" },
+            ]}
+          />
+        </FilterGroup>
+
+        <FilterGroup label="Job type">
           <Segmented
             value={filters.jobType}
             onChange={(v) => setFilters({ ...filters, jobType: v as Filters["jobType"] })}
@@ -733,10 +774,7 @@ function FilterBar({ filters, setFilters }: { filters: Filters; setFilters: (f: 
           />
         </FilterGroup>
 
-        <FilterGroup
-          label="How to apply"
-          help="Easy Apply = apply inside LinkedIn in a few clicks. External = the listing sends you to the company's own careers site. All shows both."
-        >
+        <FilterGroup label="How to apply">
           <Segmented
             value={filters.easyApply}
             onChange={(v) => setFilters({ ...filters, easyApply: v as Filters["easyApply"] })}
@@ -770,21 +808,12 @@ function FilterBar({ filters, setFilters }: { filters: Filters; setFilters: (f: 
   );
 }
 
-// Labelled filter control with an optional info tooltip explaining the options.
-function FilterGroup({ label, help, children }: { label: string; help?: string; children: React.ReactNode }) {
+// Labelled filter control.
+function FilterGroup({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div>
       <div className="mb-1 flex items-center gap-1">
         <span className="text-[11px] font-semibold uppercase tracking-wide text-muted">{label}</span>
-        {help && (
-          <span
-            title={help}
-            className="grid h-3.5 w-3.5 cursor-help place-items-center rounded-full border border-line text-[9px] font-bold leading-none text-muted"
-            aria-label={help}
-          >
-            i
-          </span>
-        )}
       </div>
       {children}
     </div>
@@ -1012,6 +1041,7 @@ function BandChip({ n }: { n: number }) {
 function JobsResultBar({ count, filters }: { count: number; filters: Filters }) {
   const chips: string[] = [];
   filters.stacks.forEach((s) => chips.push(STACK_SHORT[s]));
+  if (filters.dateRange) chips.push(DATE_RANGE_LABEL[filters.dateRange]);
   if (filters.jobType) chips.push(filters.jobType === "contract" ? "Contract" : "Full-time");
   if (filters.easyApply) chips.push(filters.easyApply === "true" ? "Easy Apply" : "External");
   if (filters.location) chips.push(`“${filters.location}”`);
@@ -1039,18 +1069,20 @@ function CardMeta({ children }: { children: React.ReactNode }) {
 }
 
 function CompetitionTable({ jobs, filters }: { jobs: Job[]; filters: Filters }) {
+  // Show in posted-date order (newest first) so the Posted column reads in order.
+  const sorted = [...jobs].sort((a, b) => postedKey(b).localeCompare(postedKey(a)));
   return (
     <div>
       <div className="mb-3">
-        <JobsResultBar count={jobs.length} filters={filters} />
+        <JobsResultBar count={sorted.length} filters={filters} />
       </div>
-      {jobs.length === 0 ? (
+      {sorted.length === 0 ? (
         <Empty />
       ) : (
         <>
           {/* phone: cards */}
           <ul className="space-y-2 sm:hidden">
-            {jobs.map((j) => (
+            {sorted.map((j) => (
               <li key={j.id} className="rounded-xl border border-line bg-card p-3.5">
                 <div className="flex items-start justify-between gap-3">
                   <p className="line-clamp-2 text-sm font-medium text-ink">{j.title}</p>
@@ -1073,7 +1105,7 @@ function CompetitionTable({ jobs, filters }: { jobs: Job[]; filters: Filters }) 
                   {j.applicants_per_hour != null && (
                     <span className="tabular-nums">{j.applicants_per_hour.toFixed(1)}/hr</span>
                   )}
-                  <span className="ml-auto">{j.posted_at ?? new Date(j.scraped_at).toLocaleDateString()}</span>
+                  <span className="ml-auto">{shortDate(postedKey(j))}</span>
                 </CardMeta>
               </li>
             ))}
@@ -1081,7 +1113,7 @@ function CompetitionTable({ jobs, filters }: { jobs: Job[]; filters: Filters }) 
           {/* tablet+ : table */}
           <div className="hidden sm:block">
             <Table head={["Title", "Company", "Stack", "Location", "Applicants", "Competition", "Applicants/hr", "Posted"]}>
-              {jobs.map((j) => (
+              {sorted.map((j) => (
                 <Row key={j.id}>
                   <Td className="font-medium text-ink">{j.title}</Td>
                   <Td>{j.company}</Td>
@@ -1094,7 +1126,7 @@ function CompetitionTable({ jobs, filters }: { jobs: Job[]; filters: Filters }) 
                   </Td>
                   <Td>{j.applicant_count != null ? <BandChip n={j.applicant_count} /> : <span className="text-muted">—</span>}</Td>
                   <Td className="tabular-nums">{j.applicants_per_hour != null ? j.applicants_per_hour.toFixed(1) : "—"}</Td>
-                  <Td className="tabular-nums">{j.posted_at ?? new Date(j.scraped_at).toLocaleDateString()}</Td>
+                  <Td className="tabular-nums">{shortDate(postedKey(j))}</Td>
                 </Row>
               ))}
             </Table>
