@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   STACKS,
   STACK_COLOR_VAR,
@@ -53,6 +53,22 @@ interface Filters {
 
 const EMPTY_FILTERS: Filters = { stacks: [], jobType: "", location: "", easyApply: "", dateRange: "" };
 
+// Build the /api/jobs URL for a set of filters. Module-scoped and called from the
+// fetch effect (not during render), so reading the clock here stays pure-safe.
+function buildJobsUrl(f: Filters): string {
+  const p = new URLSearchParams();
+  f.stacks.forEach((s) => p.append("stack", s));
+  if (f.dateRange) {
+    const days = DATE_RANGE_DAYS[f.dateRange];
+    p.set("from", new Date(Date.now() - days * 86_400_000).toISOString());
+  }
+  if (f.jobType) p.set("jobType", f.jobType);
+  if (f.location) p.set("location", f.location);
+  if (f.easyApply) p.set("easyApply", f.easyApply);
+  p.set("sort", "recent");
+  return `/api/jobs?${p.toString()}`;
+}
+
 export function Dashboard({ user }: { user: SessionUser | null }) {
   const [tab, setTab] = useState<Tab>("Trend");
   const [filters, setFilters] = useState<Filters>(EMPTY_FILTERS);
@@ -64,35 +80,21 @@ export function Dashboard({ user }: { user: SessionUser | null }) {
   const [jobs, setJobs] = useState<Job[]>([]);
   const [companyMap, setCompanyMap] = useState<CompanyStackRow[]>([]);
   const [opps, setOpps] = useState<OpportunitiesData | null>(null);
-  const [loading, setLoading] = useState(false);
+  // Two loading tracks: `bootLoading` for the filter-independent data fetched
+  // once on mount, `jobsLoading` for the filter-dependent jobs feed.
+  const [bootLoading, setBootLoading] = useState(true);
+  const [jobsLoading, setJobsLoading] = useState(true);
 
-  const jobsQuery = useCallback(
-    (sort: "recent" | "applicants") => {
-      const p = new URLSearchParams();
-      filters.stacks.forEach((s) => p.append("stack", s));
-      if (filters.jobType) p.set("jobType", filters.jobType);
-      if (filters.location) p.set("location", filters.location);
-      if (filters.easyApply) p.set("easyApply", filters.easyApply);
-      if (filters.dateRange) {
-        const days = DATE_RANGE_DAYS[filters.dateRange];
-        p.set("from", new Date(Date.now() - days * 86_400_000).toISOString());
-      }
-      p.set("sort", sort);
-      return `/api/jobs?${p.toString()}`;
-    },
-    [filters],
-  );
-
+  // Filter-independent data (status, summary, trend, company map, opportunities)
+  // doesn't change with filters or tabs, so fetch it once and reuse it — switching
+  // tabs no longer refetches anything.
   useEffect(() => {
     let cancelled = false;
-    setLoading(true);
     (async () => {
-      const sort = tab === "Competition" ? "applicants" : "recent";
-      const [statusRes, summaryRes, trendRes, jobsRes, mapRes, oppsRes] = await Promise.all([
+      const [statusRes, summaryRes, trendRes, mapRes, oppsRes] = await Promise.all([
         fetchJson<ScrapeRun | null>("/api/status"),
         fetchJson<SummaryData | null>("/api/summary"),
         fetchJson<TrendPoint[]>("/api/trend"),
-        fetchJson<Job[]>(jobsQuery(sort)),
         fetchJson<CompanyStackRow[]>("/api/company-map"),
         fetchJson<OpportunitiesData>("/api/opportunities"),
       ]);
@@ -101,15 +103,31 @@ export function Dashboard({ user }: { user: SessionUser | null }) {
       setStatus(statusRes.data ?? null);
       setSummary(summaryRes.data ?? null);
       setTrend(trendRes.data ?? []);
-      setJobs(jobsRes.data ?? []);
       setCompanyMap(mapRes.data ?? []);
       setOpps(oppsRes.data ?? null);
-      setLoading(false);
+      setBootLoading(false);
     })();
     return () => {
       cancelled = true;
     };
-  }, [tab, jobsQuery]);
+  }, []);
+
+  // The jobs feed (Competition + Raw Feed) is the only filter-dependent data, so
+  // it refetches when a filter changes — not on every tab switch. Sorting is done
+  // client-side (sortable columns), so the request order is always "recent".
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      setJobsLoading(true);
+      const res = await fetchJson<Job[]>(buildJobsUrl(filters));
+      if (cancelled) return;
+      setJobs(res.data ?? []);
+      setJobsLoading(false);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [filters]);
 
   return (
     <div className="min-h-screen">
@@ -139,7 +157,7 @@ export function Dashboard({ user }: { user: SessionUser | null }) {
       <main className="mx-auto max-w-6xl space-y-8 overflow-x-clip px-4 py-8 sm:py-8">
         {configured === false && <NotConfigured />}
 
-        <SummarySection summary={summary} trend={trend} loading={loading && !summary} />
+        <SummarySection summary={summary} trend={trend} loading={bootLoading && !summary} />
 
         <div>
           <FilterBar filters={filters} setFilters={setFilters} />
@@ -162,20 +180,26 @@ export function Dashboard({ user }: { user: SessionUser | null }) {
           </nav>
 
           <section className="mt-6">
-            {loading && <p className="text-sm text-muted">Loading…</p>}
-            {!loading && tab === "Trend" && (
-              <Card>
-                <SectionTitle
-                  title="Demand trend"
-                  hint="Open roles per stack (LinkedIn result totals). Use the stack filter above to focus on a few."
-                />
-                <TrendChart points={trend} visible={filters.stacks} />
-              </Card>
-            )}
-            {!loading && tab === "Opportunities" && <OpportunitiesView data={opps} filters={filters} />}
-            {!loading && tab === "Competition" && <CompetitionTable jobs={jobs} filters={filters} />}
-            {!loading && tab === "Company Map" && <CompanyMapTable rows={companyMap} />}
-            {!loading && tab === "Raw Feed" && <RawFeedTable jobs={jobs} filters={filters} />}
+            {tab === "Trend" &&
+              (bootLoading && trend.length === 0 ? (
+                <ChartSkeleton />
+              ) : (
+                <Card>
+                  <SectionTitle
+                    title="Demand trend"
+                    hint="Open roles per stack (LinkedIn result totals). Use the stack filter above to focus on a few."
+                  />
+                  <TrendChart points={trend} visible={filters.stacks} />
+                </Card>
+              ))}
+            {tab === "Opportunities" &&
+              (bootLoading && !opps ? <TableSkeleton rows={6} /> : <OpportunitiesView data={opps} filters={filters} />)}
+            {tab === "Competition" &&
+              (jobsLoading ? <TableSkeleton rows={8} /> : <CompetitionTable jobs={jobs} filters={filters} />)}
+            {tab === "Company Map" &&
+              (bootLoading && companyMap.length === 0 ? <TableSkeleton rows={8} /> : <CompanyMapTable rows={companyMap} />)}
+            {tab === "Raw Feed" &&
+              (jobsLoading ? <TableSkeleton rows={8} /> : <RawFeedTable jobs={jobs} filters={filters} />)}
           </section>
         </div>
       </main>
@@ -190,6 +214,37 @@ async function fetchJson<T>(url: string): Promise<ApiResult<T>> {
   } catch {
     return { configured: false, data: null as unknown as T };
   }
+}
+
+/* ---------------------------- skeletons ---------------------------- */
+
+// Shimmer placeholder for a table while its data loads — matches the real
+// table's card shell so switching tabs doesn't flash bare "Loading…" text.
+function TableSkeleton({ rows = 8 }: { rows?: number }) {
+  return (
+    <div className="overflow-hidden rounded-xl border border-line bg-card" aria-hidden>
+      <div className="h-10 border-b border-line bg-plane/50" />
+      <div className="divide-y divide-line">
+        {Array.from({ length: rows }).map((_, i) => (
+          <div key={i} className="flex items-center gap-4 px-4 py-3.5">
+            <div className="h-4 flex-1 animate-pulse rounded bg-line/60" />
+            <div className="hidden h-4 w-28 animate-pulse rounded bg-line/60 sm:block" />
+            <div className="h-4 w-16 animate-pulse rounded bg-line/60" />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// Shimmer placeholder for the trend chart.
+function ChartSkeleton() {
+  return (
+    <Card>
+      <div className="mb-4 h-4 w-40 animate-pulse rounded bg-line/60" />
+      <div className="h-64 w-full animate-pulse rounded-lg bg-line/40" />
+    </Card>
+  );
 }
 
 /* ----------------------------- summary ----------------------------- */
@@ -676,7 +731,7 @@ function StatusBadge({ configured, status }: { configured: boolean | null; statu
   return (
     <Pill tone={tone}>
       <span className="hidden sm:inline">{status.jobs_found} jobs · </span>
-      {new Date(status.ran_at).toLocaleDateString()}
+      {shortDate(status.ran_at)}
     </Pill>
   );
 }
@@ -1073,8 +1128,9 @@ function CompetitionTable({ jobs, filters }: { jobs: Job[]; filters: Filters }) 
   const sorted = [...jobs].sort((a, b) => postedKey(b).localeCompare(postedKey(a)));
   return (
     <div>
-      <div className="mb-3">
+      <div className="mb-3 space-y-2">
         <JobsResultBar count={sorted.length} filters={filters} />
+        <BandLegend />
       </div>
       {sorted.length === 0 ? (
         <Empty />
@@ -1110,26 +1166,22 @@ function CompetitionTable({ jobs, filters }: { jobs: Job[]; filters: Filters }) 
               </li>
             ))}
           </ul>
-          {/* tablet+ : table */}
+          {/* tablet+ : sortable table (click a header to reorder) */}
           <div className="hidden sm:block">
-            <Table head={["Title", "Company", "Stack", "Location", "Applicants", "Competition", "Applicants/hr", "Posted"]}>
-              {sorted.map((j) => (
-                <Row key={j.id}>
-                  <Td className="font-medium text-ink">{j.title}</Td>
-                  <Td>{j.company}</Td>
-                  <Td>
-                    <StackTags stacks={j.stacks} />
-                  </Td>
-                  <Td>{j.location}</Td>
-                  <Td className="tabular-nums font-medium text-ink">
-                    {j.applicant_count != null ? applicantLabel(j.applicant_count) : "—"}
-                  </Td>
-                  <Td>{j.applicant_count != null ? <BandChip n={j.applicant_count} /> : <span className="text-muted">—</span>}</Td>
-                  <Td className="tabular-nums">{j.applicants_per_hour != null ? j.applicants_per_hour.toFixed(1) : "—"}</Td>
-                  <Td className="tabular-nums">{shortDate(postedKey(j))}</Td>
-                </Row>
-              ))}
-            </Table>
+            <DataTable<Job>
+              rows={jobs}
+              initial={{ key: "posted", dir: "desc" }}
+              columns={[
+                { key: "title", label: "Title", cellClass: "font-medium text-ink", sort: { type: "text", value: (j) => j.title.toLowerCase() }, render: (j) => j.title },
+                { key: "company", label: "Company", sort: { type: "text", value: (j) => j.company.toLowerCase() }, render: (j) => j.company },
+                { key: "stack", label: "Stack", render: (j) => <StackTags stacks={j.stacks} /> },
+                { key: "location", label: "Location", sort: { type: "text", value: (j) => (j.location ?? "").toLowerCase() }, render: (j) => j.location },
+                { key: "applicants", label: "Applicants", cellClass: "tabular-nums font-medium text-ink", sort: { type: "number", value: (j) => j.applicant_count }, render: (j) => (j.applicant_count != null ? applicantLabel(j.applicant_count) : "—") },
+                { key: "competition", label: "Competition", render: (j) => (j.applicant_count != null ? <BandChip n={j.applicant_count} /> : <span className="text-muted">—</span>) },
+                { key: "perhr", label: "Applicants/hr", cellClass: "tabular-nums", sort: { type: "number", value: (j) => j.applicants_per_hour ?? null }, render: (j) => (j.applicants_per_hour != null ? j.applicants_per_hour.toFixed(1) : "—") },
+                { key: "posted", label: "Posted", cellClass: "tabular-nums", sort: { type: "text", value: (j) => postedKey(j) }, render: (j) => shortDate(postedKey(j)) },
+              ]}
+            />
           </div>
         </>
       )}
@@ -1170,29 +1222,27 @@ function RawFeedTable({ jobs, filters }: { jobs: Job[]; filters: Filters }) {
                   <span>
                     · <span className="tabular-nums font-medium text-ink">{j.applicant_count != null ? applicantLabel(j.applicant_count) : "—"}</span> appl.
                   </span>
-                  <span className="ml-auto">{new Date(j.scraped_at).toLocaleDateString()}</span>
+                  <span className="ml-auto">{shortDate(j.scraped_at)}</span>
                 </CardMeta>
               </li>
             ))}
           </ul>
-          {/* tablet+ : table */}
+          {/* tablet+ : sortable table (click a header to reorder) */}
           <div className="hidden sm:block">
-            <Table head={["Title", "Company", "Stack(s)", "Location", "Type", "Apply", "Applicants", "Scraped"]}>
-              {jobs.map((j) => (
-                <Row key={j.id}>
-                  <Td className="font-medium text-ink">{j.title}</Td>
-                  <Td>{j.company}</Td>
-                  <Td>
-                    <StackTags stacks={j.stacks} />
-                  </Td>
-                  <Td>{j.location}</Td>
-                  <Td>{jobTypeLabel(j.job_type)}</Td>
-                  <Td>{applyLabel(j.easy_apply)}</Td>
-                  <Td className="tabular-nums">{j.applicant_count != null ? applicantLabel(j.applicant_count) : "—"}</Td>
-                  <Td className="tabular-nums">{new Date(j.scraped_at).toLocaleDateString()}</Td>
-                </Row>
-              ))}
-            </Table>
+            <DataTable<Job>
+              rows={jobs}
+              initial={{ key: "scraped", dir: "desc" }}
+              columns={[
+                { key: "title", label: "Title", cellClass: "font-medium text-ink", sort: { type: "text", value: (j) => j.title.toLowerCase() }, render: (j) => j.title },
+                { key: "company", label: "Company", sort: { type: "text", value: (j) => j.company.toLowerCase() }, render: (j) => j.company },
+                { key: "stacks", label: "Stack(s)", render: (j) => <StackTags stacks={j.stacks} /> },
+                { key: "location", label: "Location", sort: { type: "text", value: (j) => (j.location ?? "").toLowerCase() }, render: (j) => j.location },
+                { key: "type", label: "Type", sort: { type: "text", value: (j) => jobTypeLabel(j.job_type) }, render: (j) => jobTypeLabel(j.job_type) },
+                { key: "apply", label: "Apply", sort: { type: "text", value: (j) => applyLabel(j.easy_apply) }, render: (j) => applyLabel(j.easy_apply) },
+                { key: "applicants", label: "Applicants", cellClass: "tabular-nums", sort: { type: "number", value: (j) => j.applicant_count }, render: (j) => (j.applicant_count != null ? applicantLabel(j.applicant_count) : "—") },
+                { key: "scraped", label: "Scraped", cellClass: "tabular-nums", sort: { type: "text", value: (j) => j.scraped_at.slice(0, 10) }, render: (j) => shortDate(j.scraped_at) },
+              ]}
+            />
           </div>
         </>
       )}
@@ -1264,6 +1314,118 @@ function StackTags({ stacks }: { stacks: Stack[] }) {
         </span>
       ))}
     </span>
+  );
+}
+
+// Competition-band legend (Fresh / Low / Busy / Crowded) — a small on-screen key
+// for the applicant-count colours, so the bands are self-explanatory.
+function BandLegend() {
+  return (
+    <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 rounded-lg border border-line bg-plane/40 px-3 py-2 text-[11px] text-muted">
+      <span className="font-semibold uppercase tracking-wide">Competition</span>
+      {BANDS.map((b) => (
+        <span key={b.key} className="inline-flex items-center gap-1.5" title={b.blurb}>
+          <span className={`h-2 w-2 rounded-full ${BAND_DOT[b.key]}`} />
+          <span className="font-medium text-ink">{b.name}</span>
+          <span className="tabular-nums">{b.range}</span>
+        </span>
+      ))}
+    </div>
+  );
+}
+
+/* --------------------------- sortable table ------------------------- */
+
+type SortDir = "asc" | "desc";
+
+interface Column<T> {
+  key: string;
+  label: string;
+  align?: "left" | "right" | "center";
+  cellClass?: string;
+  render: (row: T) => React.ReactNode;
+  // Present => the column is sortable; `value` returns the comparable key.
+  sort?: { type: "text" | "number"; value: (row: T) => string | number | null };
+}
+
+const alignClass = (a?: "left" | "right" | "center") =>
+  a === "right" ? "text-right" : a === "center" ? "text-center" : "text-left";
+
+// A table whose sortable columns can be reordered by clicking their header.
+// Sorting is client-side; nulls always sort last regardless of direction.
+function DataTable<T extends { id: string }>({
+  columns,
+  rows,
+  initial,
+}: {
+  columns: Column<T>[];
+  rows: T[];
+  initial: { key: string; dir: SortDir };
+}) {
+  const [sort, setSort] = useState(initial);
+
+  const sorted = useMemo(() => {
+    const col = columns.find((c) => c.key === sort.key);
+    if (!col?.sort) return rows;
+    const { value, type } = col.sort;
+    return [...rows].sort((a, b) => {
+      const av = value(a);
+      const bv = value(b);
+      if (av == null && bv == null) return 0;
+      if (av == null) return 1; // nulls last
+      if (bv == null) return -1;
+      const base = type === "number" ? (av as number) - (bv as number) : String(av).localeCompare(String(bv));
+      return sort.dir === "asc" ? base : -base;
+    });
+  }, [rows, columns, sort]);
+
+  const toggle = (key: string) =>
+    setSort((s) => (s.key === key ? { key, dir: s.dir === "asc" ? "desc" : "asc" } : { key, dir: "asc" }));
+
+  return (
+    <div className="overflow-x-auto rounded-xl border border-line bg-card">
+      <table className="w-full text-left text-sm">
+        <thead className="border-b border-line text-xs uppercase tracking-wide text-muted">
+          <tr>
+            {columns.map((c) => {
+              const on = sort.key === c.key && !!c.sort;
+              return (
+                <th key={c.key} className={`px-3 py-2.5 font-medium ${alignClass(c.align)}`}>
+                  {c.sort ? (
+                    <button
+                      type="button"
+                      onClick={() => toggle(c.key)}
+                      aria-label={`Sort by ${c.label}`}
+                      className={`inline-flex items-center gap-1 uppercase transition-colors hover:text-ink ${
+                        on ? "text-ink" : ""
+                      } ${c.align === "right" ? "flex-row-reverse" : ""}`}
+                    >
+                      {c.label}
+                      <span className={`text-[9px] leading-none ${on ? "opacity-100" : "opacity-30"}`}>
+                        {on ? (sort.dir === "asc" ? "▲" : "▼") : "▲"}
+                      </span>
+                    </button>
+                  ) : (
+                    c.label
+                  )}
+                </th>
+              );
+            })}
+          </tr>
+        </thead>
+        <tbody>
+          {sorted.map((row) => (
+            <Row key={row.id}>
+              {columns.map((c) => (
+                <Td key={c.key} className={`${alignClass(c.align)} ${c.cellClass ?? ""}`}>
+                  {c.render(row)}
+                </Td>
+              ))}
+            </Row>
+          ))}
+        </tbody>
+      </table>
+    </div>
   );
 }
 
