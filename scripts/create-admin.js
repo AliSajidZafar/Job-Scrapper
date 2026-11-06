@@ -12,7 +12,7 @@ const os = require("os");
 const path = require("path");
 const { createClient } = require("@supabase/supabase-js");
 
-const EMAIL = "admin@mavericksunited.co";
+const EMAIL = "kaleem@maverickslabs.io";
 const NAME = "Mavericks";
 const SIGN_IN_URL = "https://jobs.mavericksunited.co/login";
 const OUT_FILE = path.join(os.homedir(), "Mavericks-admin-login.txt");

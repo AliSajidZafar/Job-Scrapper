@@ -67,7 +67,7 @@ It only reads job information. It never applies to jobs.
   - The dashboard is live at **https://jobs.mavericksunited.co**.
 - **Accounts:**
   - **Create account** and **Sign in** pages. Anyone can register and sign in, and the dashboard stays public.
-  - **Admin account "Mavericks"** (admin@mavericksunited.co). The password was generated securely and saved only on your PC, in `Mavericks-admin-login.txt` in your user folder.
+  - **Admin account "Mavericks"** (kaleem@maverickslabs.io). The password remains unchanged and is saved only on your PC, in `Mavericks-admin-login.txt` in your user folder.
   - A **private admin page** (/admin) with system status, scrape run history, the list of registered users, and tools such as CSV export.
   - **Security:** passwords are stored hashed by Supabase, sessions use signed cookies that can't be tampered with, and repeated wrong passwords and spam sign-ups are blocked. 19 automated security checks passed.
 - **Daily scrape automation:**
