@@ -33,6 +33,14 @@ yarn-error.log*
 # env files (can opt-in for committing if needed)
 .env*
 
+# local secret / credential files — NEVER commit (keep on disk only)
+Mavericks-admin-login.txt
+password.txt
+Mavericks Job Scrapper Supabase password.txt
+*supabase*password*.txt
+*admin-login*.txt
+*.password.txt
+
 # vercel
 .vercel
 
