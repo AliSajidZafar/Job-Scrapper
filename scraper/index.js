@@ -64,7 +64,14 @@ async function main() {
   let failedStacks = 0;
   let fatalError = null;
 
-  for (const stack of config.stacks) {
+  // Optional subset for a targeted re-scrape: STACKS_FILTER="MERN,Rust,Elixir".
+  const only = (process.env.STACKS_FILTER || "")
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+  const stacksToRun = only.length ? config.stacks.filter((s) => only.includes(s.name)) : config.stacks;
+
+  for (const stack of stacksToRun) {
     try {
       const { jobs, totalResults } = await scrapeStack(page, stack);
       totalJobs += await upsertJobs(jobs);
@@ -101,7 +108,7 @@ async function main() {
   }
 
   await logRun({ jobsFound: totalJobs, status, errorMessage: message });
-  console.log(`\nRun ${status}: ${totalJobs} jobs across ${config.stacks.length} stacks.`);
+  console.log(`\nRun ${status}: ${totalJobs} jobs across ${stacksToRun.length} stacks.`);
   await reportRun({ status, jobsFound: totalJobs, message });
 
   if (status !== "success") {
