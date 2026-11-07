@@ -1,0 +1,6 @@
+[2026-11-04T21:08:21.496Z] [INIT] Deep Copilot debug log started. file=c:\Users\Mavericks United\OneDrive\Pictures\Documents\Mavericks\Job Scrapper\.deep-copilot\logs\session-2026-11-04T21-08-21-495Z.log
+[2026-11-04T21:08:21.497Z] [ACTIVATE] {"version":"0.43.1"}
+[2026-11-04T21:08:21.499Z] [PROVIDERS_LOADED] {"count":4,"ids":["anthropic","custom","deepseek","openai"]}
+[2026-11-04T21:08:21.499Z] [TERMINAL_MONITOR_STARTED] {}
+[2026-11-04T21:08:21.500Z] [STATUSBAR_REGISTERED] {"id":"deepseekAgent.statusBar"}
+[2026-11-04T21:08:21.634Z] [INLINE_COMPLETION_REGISTERED]
