@@ -29,18 +29,18 @@ type Tab = (typeof TABS)[number];
 
 // Date-range (freshness) filter options. Values are how many days back to
 // include, measured from now against each job's scraped_at. "" means no limit.
-type DateRange = "" | "latest" | "7d" | "9d" | "30d";
+type DateRange = "" | "latest" | "7d" | "30d" | "90d";
 const DATE_RANGE_DAYS: Record<Exclude<DateRange, "">, number> = {
   latest: 1, // the most recent fetch window (past 24h)
   "7d": 7,
-  "9d": 9,
   "30d": 30,
+  "90d": 90,
 };
 const DATE_RANGE_LABEL: Record<Exclude<DateRange, "">, string> = {
   latest: "Latest",
   "7d": "Past 7 days",
-  "9d": "Past 9 days",
   "30d": "Past 30 days",
+  "90d": "Past 90 days",
 };
 
 interface Filters {
@@ -811,8 +811,8 @@ function FilterBar({ filters, setFilters }: { filters: Filters; setFilters: (f: 
               { value: "", label: "All" },
               { value: "latest", label: "Latest" },
               { value: "7d", label: "7 days" },
-              { value: "9d", label: "9 days" },
               { value: "30d", label: "30 days" },
+              { value: "90d", label: "90 days" },
             ]}
           />
         </FilterGroup>
