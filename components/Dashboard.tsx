@@ -803,7 +803,7 @@ function FilterBar({ filters, setFilters }: { filters: Filters; setFilters: (f: 
 
       {/* date range + job type + how-to-apply + location */}
       <div className="flex flex-wrap items-end gap-x-5 gap-y-3 border-t border-line pt-3">
-        <FilterGroup label="Date">
+        <FilterGroup label="Period">
           <Segmented
             value={filters.dateRange}
             onChange={(v) => setFilters({ ...filters, dateRange: v as Filters["dateRange"] })}
