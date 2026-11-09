@@ -1,5 +1,6 @@
 import { NextRequest } from "next/server";
 import { getSupabaseServer } from "@/lib/supabase";
+import { fetchAllRows } from "@/lib/paginate";
 import { seniorityOf, type Seniority } from "@/lib/seniority";
 import { STACKS, type ApiResult, type JobType, type StackDetail, type StackJob, type Stack } from "@/lib/types";
 
@@ -23,20 +24,6 @@ export async function GET(req: NextRequest) {
     return Response.json({ configured: false, data: null } satisfies ApiResult<StackDetail | null>);
   }
 
-  const [demandRes, jobsRes, lastRes] = await Promise.all([
-    supabase.from("stack_demand").select("day, total_results, scraped_count").eq("stack", stack).order("day", { ascending: true }),
-    supabase
-      .from("jobs")
-      .select("id, linkedin_job_id, title, company, location, job_type, applicant_count, posted_at, scraped_at, job_stacks!inner(stack)")
-      .eq("job_stacks.stack", stack)
-      .limit(1000),
-    supabase.from("search_snapshots").select("searched_at").eq("stack", stack).order("searched_at", { ascending: false }).limit(1).maybeSingle(),
-  ]);
-
-  if (jobsRes.error) {
-    return Response.json({ configured: true, data: null, error: jobsRes.error.message } satisfies ApiResult<StackDetail | null>);
-  }
-
   type Row = {
     id: string;
     linkedin_job_id: string;
@@ -48,7 +35,28 @@ export async function GET(req: NextRequest) {
     posted_at: string | null;
     scraped_at: string;
   };
-  const rows = (jobsRes.data ?? []) as unknown as Row[];
+
+  const [demandRes, lastRes] = await Promise.all([
+    supabase.from("stack_demand").select("day, total_results, scraped_count").eq("stack", stack).order("day", { ascending: true }),
+    supabase.from("search_snapshots").select("searched_at").eq("stack", stack).order("searched_at", { ascending: false }).limit(1).maybeSingle(),
+  ]);
+
+  // Every tracked posting for this stack, paged in full so the drawer list and
+  // its "tracked" count can never fall short of the tile when a stack grows past
+  // the 1000-row single-request cap.
+  let rows: Row[];
+  try {
+    rows = await fetchAllRows<Row>(
+      (from, to) =>
+        supabase
+          .from("jobs")
+          .select("id, linkedin_job_id, title, company, location, job_type, applicant_count, posted_at, scraped_at, job_stacks!inner(stack)")
+          .eq("job_stacks.stack", stack)
+          .range(from, to) as unknown as PromiseLike<{ data: Row[] | null; error: { message: string } | null }>,
+    );
+  } catch (e) {
+    return Response.json({ configured: true, data: null, error: e instanceof Error ? e.message : "Query failed" } satisfies ApiResult<StackDetail | null>);
+  }
 
   // Applicant velocity (applicants/hour) for these jobs, when it exists.
   const ids = rows.map((r) => r.linkedin_job_id);

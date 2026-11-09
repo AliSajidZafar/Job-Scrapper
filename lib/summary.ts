@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { STACKS, type Stack, type StackSummary, type SummaryData } from "@/lib/types";
+import { fetchAllRows } from "@/lib/paginate";
 
 // Per-stack headline numbers: open roles on LinkedIn (demand) + applicants
 // (avg/max over the captured sample). Shared by /api/summary, the auth pages'
@@ -19,11 +20,12 @@ export async function getSummary(supabase: SupabaseClient): Promise<SummaryData>
     history.get(r.stack)!.push({ day: r.day, total: r.total_results });
   }
 
-  // Applicant stats over the captured jobs, aggregated per stack.
-  const { data: jobs } = await supabase
-    .from("jobs")
-    .select("applicant_count, job_stacks(stack)")
-    .limit(5000);
+  // Applicant stats over the captured jobs, aggregated per stack. Paged through
+  // in full — a single request is capped at 1000 rows, which would undercount
+  // the headline totals and leave the tile below the per-stack drawer count.
+  const jobs = await fetchAllRows<{ applicant_count: number | null; job_stacks: { stack: Stack }[] }>(
+    (from, to) => supabase.from("jobs").select("applicant_count, job_stacks(stack)").range(from, to),
+  );
 
   const agg = new Map<Stack, { captured: number; sum: number; n: number; max: number }>();
   for (const s of STACKS) agg.set(s, { captured: 0, sum: 0, n: 0, max: 0 });
@@ -31,7 +33,7 @@ export async function getSummary(supabase: SupabaseClient): Promise<SummaryData>
   let totalCaptured = 0;
   let allSum = 0;
   let allN = 0;
-  for (const row of (jobs ?? []) as { applicant_count: number | null; job_stacks: { stack: Stack }[] }[]) {
+  for (const row of jobs) {
     totalCaptured++;
     if (row.applicant_count != null) {
       allSum += row.applicant_count;

@@ -1,4 +1,5 @@
 import { getSupabaseServer } from "@/lib/supabase";
+import { fetchAllRows } from "@/lib/paginate";
 import type { Stack } from "@/lib/types";
 
 // GET /api/export — download the current job feed as CSV (Raw Feed tab).
@@ -8,13 +9,15 @@ export async function GET() {
     return new Response("Supabase not configured", { status: 503 });
   }
 
-  const { data, error } = await supabase
-    .from("jobs")
-    .select("*, job_stacks(stack)")
-    .order("scraped_at", { ascending: false })
-    .limit(5000);
-
-  if (error) return new Response(error.message, { status: 500 });
+  // Export every job, not just the first page — a single request caps at 1000.
+  let data: Record<string, unknown>[];
+  try {
+    data = await fetchAllRows<Record<string, unknown>>((from, to) =>
+      supabase.from("jobs").select("*, job_stacks(stack)").order("scraped_at", { ascending: false }).range(from, to),
+    );
+  } catch (e) {
+    return new Response(e instanceof Error ? e.message : "Export failed", { status: 500 });
+  }
 
   const header = [
     "linkedin_job_id",
