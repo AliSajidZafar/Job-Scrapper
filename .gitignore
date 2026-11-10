@@ -34,12 +34,37 @@ yarn-error.log*
 .env*
 
 # local secret / credential files — NEVER commit (keep on disk only)
+# passwords
 Mavericks-admin-login.txt
 password.txt
 Mavericks Job Scrapper Supabase password.txt
+*password*.txt
+*passwords*.txt
+*.password.txt
 *supabase*password*.txt
 *admin-login*.txt
-*.password.txt
+# generic secrets / credentials
+*secret*.txt
+*secrets*.txt
+*.secret
+*credential*.txt
+*credentials*.json
+*.credentials
+# keys & certificates (*.pem already ignored above)
+*.key
+*.pfx
+*.p12
+*.cer
+*.crt
+*.asc
+id_rsa
+id_rsa.*
+id_ed25519
+id_ed25519.*
+*.ppk
+# auth / session state
+*storage-state*.json
+*storageState*.json
 
 # vercel
 .vercel
