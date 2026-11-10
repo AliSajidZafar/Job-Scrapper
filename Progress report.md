@@ -1,15 +1,16 @@
 # Mavericks Market Intelligence: Progress Report
 
-**Period:** 27 October – 3 November 2026
+**Period:** 27 October – 10 November 2026
 **Live dashboard:** https://jobs.mavericksunited.co
 **Automation (n8n):** https://n8n.mavericksunited.co
 **Code:** https://github.com/AliSajidZafar/Job-Scrapper (branch `main`)
+**Project folder (on your PC):** `C:\Users\Mavericks United\Documents\Mavericks\Job Scrapper` (moved out of OneDrive on 10 Nov — see Day 7)
 
 ---
 
 ## 1. What the product does
 
-Mavericks Market Intelligence tracks US remote demand for **ten tech stacks** on LinkedIn: **SAP, Salesforce, MERN, .NET, Java, ServiceNow, Workday, Data Engineering, DevOps and AI / ML**. Every day it collects new remote job postings (posted in the last 24 hours, Contract or Full-time, Easy Apply). It records how many open roles each stack has and how many people applied to each job. All of this is shown on a public dashboard so you can see which stacks are rising, which are falling, and where competition is lowest.
+Mavericks Market Intelligence tracks US remote demand for **twenty tech stacks** on LinkedIn: the ten core stacks — **SAP, Salesforce, MERN, .NET, Java, ServiceNow, Workday, Data Engineering, DevOps and AI / ML** — plus ten specialist, low-competition stacks — **Rust, Elixir, C++, Haskell, SRE, Embedded, GIS, COBOL, CUDA and Edge AI**. Every day it collects new remote job postings (posted in the last 24 hours, Contract or Full-time, Easy Apply). It records how many open roles each stack has and how many people applied to each job. All of this is shown on a public dashboard so you can see which stacks are rising, which are falling, and where competition is lowest.
 
 It only reads job information. It never applies to jobs.
 
@@ -28,12 +29,17 @@ It only reads job information. It never applies to jobs.
 | Hosting on your VPS | ✅ Running 24/7, restarts by itself after a reboot |
 | Custom domain + HTTPS | ✅ jobs.mavericksunited.co via Cloudflare |
 | Daily automation + email alerts | ✅ n8n on the VPS, alerts to your Gmail |
-| Ten tech stacks tracked | ✅ 5 original + 5 new (ServiceNow, Workday, Data Engineering, DevOps, AI / ML) |
+| Twenty tech stacks tracked | ✅ 10 core + 10 specialist (Rust, Elixir, C++, Haskell, SRE, Embedded, GIS, COBOL, CUDA, Edge AI) |
 | Movers & Opportunities views | ✅ Rising/falling stacks; low-competition and fastest-filling jobs |
 | Professional account menu | ✅ Avatar dropdown when signed in; clear sign-in buttons when out |
 | Executive dashboard polish | ✅ KPI band, per-stack sparklines, focusable trend chart (3 Nov) |
+| Mobile layout | ✅ Tuned for phones |
+| Time-range filter | ✅ "Period" filter (All / Latest / 7 / 30 / 90 days) |
+| Dashboard number accuracy | ✅ Headline counts fixed to read all records (10 Nov) |
+| Credentials scrubbed from GitHub | ✅ Old password files erased from all history; ignore rules hardened (10 Nov) |
+| Project moved off OneDrive | ✅ Now in a normal folder to stop file-sync corruption (10 Nov) |
 
-**Data so far:** all 10 stacks carry live data. Latest full run 2 Nov captured 92 jobs across the 10 stacks, on top of the earlier runs (27–30 Oct). The dashboard refreshes with each scrape.
+**Data so far:** all 20 stacks carry live data. The latest run (9 Nov) and earlier runs add up to **1,692 tracked postings** and about **98,440 recorded applicants** across the stacks. The dashboard refreshes with each scrape.
 
 ---
 
@@ -115,6 +121,20 @@ It only reads job information. It never applies to jobs.
 - **Focusable trend chart.** The chart legend is now interactive: click any stack to isolate it, which reveals a soft gradient fill under its line; click it again to bring all ten back. With every stack shown it stays as clean lines (fills would overlap into mud).
 - Checked in light mode, dark mode and on phones; the production build is clean and all 19 security checks still pass on the live site. **Deployed to https://jobs.mavericksunited.co.**
 
+### Day 6 (9 Nov): Twenty stacks, mobile polish, and a big data run
+- **Doubled the tracked stacks from ten to twenty.** Added ten specialist, low-competition, high-skill markets: **Rust, Elixir, C++, Haskell, SRE, Embedded, GIS, COBOL, CUDA and Edge AI**. Each got its own colour and was wired through the dashboard, trend chart, filters and company map, and added to the database.
+- **Mobile layout pass** so the dashboard reads cleanly on a phone, and a new **time-range ("Period") filter** so you can view All, the Latest run, or the last 7 / 30 / 90 days.
+- **Tidied up the main dashboard code** (a behind-the-scenes refactor) with no change to how it looks.
+- **Ran a full scrape across all stacks — 438 jobs** — and confirmed it finished successfully, so every stack carries fresh data. One stack (SAP) came back empty on the first attempt due to a cold-start hiccup on LinkedIn's first page; a re-run captured it normally.
+- **Admin account updated.** You changed the admin email in Supabase to **kaleem@maverickslabs.io**; I reset the password at your request and verified sign-in works end to end (the old password no longer works). The new login is saved only on your PC, in `Mavericks-admin-login.txt` — not written here, since this report is in the public code repository.
+
+### Day 7 (10 Nov): Accurate numbers, a security cleanup, and off OneDrive
+- **Renamed the date filter heading to "Period"** so it reads naturally over the All / Latest / 7 / 30 / 90-day tabs.
+- **Fixed a real accuracy bug in the headline numbers.** The database returns at most 1,000 records per request, and the dashboard code wasn't reading past the first page — so **"Jobs tracked" was stuck at exactly 1,000** and **"Total applicants" was undercounted**, and the number on a stack tile was lower than the number shown when you clicked into that stack. I made it read every record. The numbers are now correct and consistent: **1,692 tracked postings** and about **98,440 applicants**, and each tile matches its detail view exactly. The CSV export had the same cap and was quietly dropping about 700 jobs — fixed too.
+  - For context: the data is a **once-a-day snapshot** — accurate as of the nightly scrape, not second-by-second live. (I checked one job: we had 108 applicants stored; LinkedIn showed 109 at the time, one more than when we last looked.) You chose to keep the nightly schedule.
+- **Security: cleaned up exposed passwords in the code history.** A few small files that held passwords had, in the past, been committed to the public code repository. They were already out of the current code, but they were still readable in the repository's history. I **rewrote the entire history to erase them** and confirmed they now return "not found" on GitHub, and I **strengthened the ignore rules** so no password, key or secret file can be committed again. Your main secrets (database keys and the session secret) were **never exposed** — they live only in a local settings file that was never uploaded. *(You chose not to change the exposed passwords; if you ever want to, resetting the Supabase database password is the one that matters.)*
+- **Moved the whole project out of OneDrive.** The project had been sitting in a OneDrive-synced folder, and OneDrive kept interfering with the behind-the-scenes version-control data — it corrupted the repository twice in one sitting. I moved everything to a normal folder, **`C:\Users\Mavericks United\Documents\Mavericks\Job Scrapper`**, reinstalled everything, confirmed it builds and runs, carried over your private settings and the LinkedIn session file, and **repointed the 7 PM scheduled scrape** to the new location. The old OneDrive copy has been removed. This stops the corruption from happening again.
+
 ---
 
 ## 4. How it fits together
@@ -136,8 +156,9 @@ It only reads job information. It never applies to jobs.
 
 - **Keep the PC on (and signed in to Windows) at 7 PM.** If it's off, the run happens when you next turn it on, and n8n emails you at 9 PM.
 - **Admin password:** `C:\Users\Mavericks United\Mavericks-admin-login.txt`. To reset it, ask me.
+- **Project folder moved (10 Nov):** it is now `C:\Users\Mavericks United\Documents\Mavericks\Job Scrapper`, outside OneDrive. Don't move it back into OneDrive — that corrupted the project's internal data twice.
 - **Secrets** (database keys, session secret, webhook address) live only in `.env.local` on your PC and the VPS, never on GitHub.
-- **Manual scrape at any time:** run `npm run scrape` in the project folder.
+- **Manual scrape at any time:** open the project folder (above) and run `npm run scrape`.
 - **"Open roles" vs "Tracked" on each stack tile:** *open roles* is LinkedIn's total count of matching jobs (the size of the market); *tracked* is how many individual postings we pull in detail and follow over time (the sample we re-check for applicant growth).
 
 ---
@@ -153,6 +174,9 @@ It only reads job information. It never applies to jobs.
 | Company names not normalised | For example, "Accenture" and "Accenture Federal" count as separate companies. |
 | Easy-Apply-only filter | Hides jobs without Easy Apply, which undercounts real demand. Your decision whether to keep it. |
 | Supabase public sign-up switch | Recommended: turn off "Allow new users to sign up" in Supabase (our own sign-up page keeps working). |
+| Some specialist stacks find few jobs | The rarer markets (e.g. Haskell, Elixir, COBOL) naturally return few postings; this is partly real scarcity and partly keyword matching that can still be tuned. |
+| Exposed passwords not reset | The password files were erased from the code history, but they had been public for about two weeks. You chose not to change the passwords. If reconsidered, resetting the Supabase **database** password is the one that matters (it won't affect the website). |
+| Data is a daily snapshot, not live | Numbers are accurate as of the nightly scrape and drift during the day as people apply. Making it truly live isn't practical with LinkedIn and isn't recommended. |
 
 ---
 
