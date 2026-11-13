@@ -21,6 +21,7 @@ import { BANDS, BAND_BADGE, BAND_DOT, bandDef, bandOf, applicantLabel, type Band
 import { TrendChart } from "./TrendChart";
 import { Sparkline } from "./Sparkline";
 import { StackDetail } from "./StackDetail";
+import { CompanyDetail } from "./CompanyDetail";
 import { Logo } from "./Logo";
 import { ThemeToggle } from "./ThemeToggle";
 
@@ -1286,15 +1287,22 @@ function RawFeedTable({ jobs, filters }: { jobs: Job[]; filters: Filters }) {
 }
 
 function CompanyMapTable({ rows }: { rows: CompanyStackRow[] }) {
+  const [company, setCompany] = useState<string | null>(null);
   if (!rows.length) return <Empty />;
   return (
     <>
+      <p className="mb-3 text-xs text-muted">Select a company for its full hiring breakdown.</p>
       {/* phone: one card per company with its stack counts */}
       <ul className="space-y-2 sm:hidden">
         {rows.map((r) => (
           <li key={r.company} className="rounded-xl border border-line bg-card p-3.5">
             <div className="flex items-center justify-between gap-3">
-              <p className="truncate text-sm font-medium text-ink">{r.company}</p>
+              <button
+                onClick={() => setCompany(r.company)}
+                className="truncate text-left text-sm font-medium text-ink hover:text-brand hover:underline"
+              >
+                {r.company}
+              </button>
               <span className="shrink-0 rounded-full bg-brand-soft px-2 py-0.5 text-xs font-semibold tabular-nums text-brand">
                 {r.total} total
               </span>
@@ -1315,7 +1323,11 @@ function CompanyMapTable({ rows }: { rows: CompanyStackRow[] }) {
         <Table head={["Company", ...STACKS.map((s) => STACK_SHORT[s]), "Total"]}>
           {rows.map((r) => (
             <Row key={r.company}>
-              <Td className="font-medium text-ink">{r.company}</Td>
+              <Td className="font-medium text-ink">
+                <button onClick={() => setCompany(r.company)} className="text-left hover:text-brand hover:underline">
+                  {r.company}
+                </button>
+              </Td>
               {STACKS.map((s) => (
                 <Td key={s} className="text-center tabular-nums">
                   {r.counts[s] ? (
@@ -1332,6 +1344,7 @@ function CompanyMapTable({ rows }: { rows: CompanyStackRow[] }) {
           ))}
         </Table>
       </div>
+      <CompanyDetail company={company} onClose={() => setCompany(null)} />
     </>
   );
 }

@@ -6,12 +6,12 @@ import {
   type ApiResult,
   type Stack,
   type StackDetail,
-  type StackJob,
   type TrendPoint,
 } from "@/lib/types";
 import { SENIORITY_LABEL, SENIORITY_ORDER, type Seniority } from "@/lib/seniority";
-import { bandOf, BAND_BADGE, applicantLabel } from "@/lib/applicants";
+import { applicantLabel } from "@/lib/applicants";
 import { TrendChart } from "./TrendChart";
+import { JobRow } from "./JobRow";
 
 // Slide-over drill-down for a single tech stack. Opens when `stack` is set,
 // fetches /api/stack live, and lays its data out in clear sections: headline
@@ -265,48 +265,7 @@ function SeniorityBar({ seniority, color, total }: { seniority: Record<Seniority
   );
 }
 
-function JobRow({ job }: { job: StackJob }) {
-  const url = `https://www.linkedin.com/jobs/view/${job.linkedin_job_id}`;
-  return (
-    <li className="flex items-center gap-3 bg-card px-4 py-3 transition-colors hover:bg-brand-soft/40">
-      <div className="min-w-0 flex-1">
-        <a href={url} target="_blank" rel="noreferrer" className="line-clamp-1 text-sm font-medium text-ink hover:text-brand hover:underline">
-          {job.title}
-        </a>
-        <div className="mt-0.5 flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-xs text-sub">
-          <span className="truncate">{job.company}</span>
-          {job.location && <span className="text-muted">· {job.location}</span>}
-          <SeniorityTag s={job.seniority} />
-        </div>
-      </div>
-      <div className="shrink-0 text-right">
-        {job.applicant_count != null ? <ApplicantBadge n={job.applicant_count} /> : <span className="text-xs text-muted">—</span>}
-        {job.applicants_per_hour != null && job.applicants_per_hour > 0 && (
-          <div className="mt-1 text-[11px] tabular-nums text-warn">+{job.applicants_per_hour.toFixed(1)}/h</div>
-        )}
-      </div>
-    </li>
-  );
-}
-
-function SeniorityTag({ s }: { s: Seniority }) {
-  return (
-    <span className="rounded-full border border-line px-1.5 py-px text-[10px] font-medium uppercase tracking-wide text-muted">
-      {SENIORITY_LABEL[s]}
-    </span>
-  );
-}
-
 const applLabel = applicantLabel;
-
-function ApplicantBadge({ n }: { n: number }) {
-  return (
-    <span className={`inline-flex items-baseline gap-1 rounded-full px-2 py-0.5 text-xs font-semibold tabular-nums ${BAND_BADGE[bandOf(n)]}`}>
-      {applLabel(n)}
-      <span className="font-normal opacity-80">appl.</span>
-    </span>
-  );
-}
 
 function Section({ title, hint, children }: { title: string; hint?: string; children: React.ReactNode }) {
   return (

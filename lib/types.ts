@@ -202,6 +202,30 @@ export interface StackJob {
   applicants_per_hour: number | null;
 }
 
+// GET /api/refresh?id=<linkedin_job_id> — a single job's current applicant
+// count, fetched live from LinkedIn on demand.
+export interface RefreshResult {
+  linkedin_job_id: string;
+  applicant_count: number | null;
+  checked_at: string; // ISO time the live check ran
+}
+
+// GET /api/company?name=<company> — the per-company drill-down.
+export interface CompanyDetail {
+  company: string;
+  as_of: string | null; // newest scrape time among this company's jobs (ISO)
+  captured: number; // tracked postings for this company
+  stacks: { stack: Stack; count: number }[]; // which stacks they hire for, most first
+  applicants: {
+    withCount: number;
+    avg: number | null;
+    median: number | null;
+    max: number | null;
+  };
+  seniority: Record<Seniority, number>;
+  jobs: StackJob[]; // individual postings, fewest applicants first
+}
+
 // GET /api/stack?stack=<name> — everything the per-stack drill-down shows.
 export interface StackDetail {
   stack: Stack;
