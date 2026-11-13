@@ -1,6 +1,6 @@
 # Mavericks Market Intelligence: Progress Report
 
-**Period:** 27 October – 10 November 2026
+**Period:** 27 October – 13 November 2026
 **Live dashboard:** https://jobs.mavericksunited.co
 **Automation (n8n):** https://n8n.mavericksunited.co
 **Code:** https://github.com/AliSajidZafar/Job-Scrapper (branch `main`)
@@ -38,6 +38,9 @@ It only reads job information. It never applies to jobs.
 | Dashboard number accuracy | ✅ Headline counts fixed to read all records (10 Nov) |
 | Credentials scrubbed from GitHub | ✅ Old password files erased from all history; ignore rules hardened (10 Nov) |
 | Project moved off OneDrive | ✅ Now in a normal folder to stop file-sync corruption (10 Nov) |
+| Period filter shows true totals | ✅ Fixed 500-row cap; tables now page (13 Nov) |
+| Live applicant refresh | ✅ Per-job ↻ button fetches the current count from LinkedIn on demand (13 Nov) |
+| Company intelligence | ✅ Click a company for its full hiring breakdown (13 Nov) |
 
 **Data so far:** all 20 stacks carry live data. The latest run (9 Nov) and earlier runs add up to **1,692 tracked postings** and about **98,440 recorded applicants** across the stacks. The dashboard refreshes with each scrape.
 
@@ -135,6 +138,12 @@ It only reads job information. It never applies to jobs.
 - **Security: cleaned up exposed passwords in the code history.** A few small files that held passwords had, in the past, been committed to the public code repository. They were already out of the current code, but they were still readable in the repository's history. I **rewrote the entire history to erase them** and confirmed they now return "not found" on GitHub, and I **strengthened the ignore rules** so no password, key or secret file can be committed again. Your main secrets (database keys and the session secret) were **never exposed** — they live only in a local settings file that was never uploaded. *(You chose not to change the exposed passwords; if you ever want to, resetting the Supabase database password is the one that matters.)*
 - **Moved the whole project out of OneDrive.** The project had been sitting in a OneDrive-synced folder, and OneDrive kept interfering with the behind-the-scenes version-control data — it corrupted the repository twice in one sitting. I moved everything to a normal folder, **`C:\Users\Mavericks United\Documents\Mavericks\Job Scrapper`**, reinstalled everything, confirmed it builds and runs, carried over your private settings and the LinkedIn session file, and **repointed the 7 PM scheduled scrape** to the new location. The old OneDrive copy has been removed. This stops the corruption from happening again.
 
+### Day 8 (13 Nov): Period fix, live refresh, and company intelligence
+- **Fixed the Period (time-range) filter.** The job lists were quietly capped at 500 rows, so **All, 7 days, 30 days and 90 days all showed 500** regardless of the real total. And "Latest" meant "the last 24 hours by the clock", which would show nothing after a missed day. Now every period returns the true count (All = 2,405, 7 days = 1,381, and so on), "Latest" means the jobs from the most recent scrape run, and the Competition and Raw Feed tables **page 50 at a time** with a "Showing 1–50 of 2,405" line. The other tabs show a short note that Period applies only to those two lists.
+- **Live applicant refresh — the closest thing to "matches LinkedIn right now".** Because the data is a daily snapshot, applicant counts drift during the day. Every job (in the stack and company drill-downs) now has a small **↻ refresh button**: click it and the site fetches *that one job's* current applicant count straight from LinkedIn and updates it, showing "✓ live · just now". It is a single, you-initiated request — polite, not bulk automation — and only works on jobs we already track. (Example seen on the day: a role stored at 139 applicants was 194 live.)
+- **Company intelligence page.** In the **Company Map** tab, company names are now clickable. Clicking one opens a panel showing how many roles that company is hiring, which stacks they hire for (with a breakdown bar), their applicant competition (average / median / most), the experience-level split, and the full list of their postings — each with its own live-refresh button. (Example: Deloitte — 179 roles across 11 stacks.)
+- All of the above is built, deployed and live. The data endpoints were verified against the live site; the on-screen panels sit behind sign-in, so please click a company and try the ↻ button once when you're logged in.
+
 ---
 
 ## 4. How it fits together
@@ -160,6 +169,8 @@ It only reads job information. It never applies to jobs.
 - **Secrets** (database keys, session secret, webhook address) live only in `.env.local` on your PC and the VPS, never on GitHub.
 - **Manual scrape at any time:** open the project folder (above) and run `npm run scrape`.
 - **"Open roles" vs "Tracked" on each stack tile:** *open roles* is LinkedIn's total count of matching jobs (the size of the market); *tracked* is how many individual postings we pull in detail and follow over time (the sample we re-check for applicant growth).
+- **The "Period" filter** (All / Latest / 7 / 30 / 90 days) only changes the **Competition** and **Raw Feed** job lists. The top tiles, Trend chart, Opportunities and Company Map are not affected. 30 and 90 days currently equal All because all data so far is under a month old.
+- **The ↻ live-refresh button** updates one job's applicant count against LinkedIn in that moment — use it on roles you care about. The rest of the numbers refresh with the nightly scrape.
 
 ---
 
@@ -168,7 +179,7 @@ It only reads job information. It never applies to jobs.
 | Item | Notes |
 |---|---|
 | MERN and Workday find few jobs | Their keyword matching is too strict (MERN 1, Workday ~4 per run). Both need smarter matching (e.g. MERN = React + Node; Workday title variants). |
-| Nightly run can be slow | With ten stacks at 25 jobs each, a slow LinkedIn evening can push a full run past an hour. Options: trim the per-stack cap, or speed up the applicant-count step. |
+| Nightly run can be slow | With twenty stacks at 15 jobs each, a slow LinkedIn evening can push a full run past an hour. Options: trim the per-stack cap, or speed up the applicant-count step. |
 | Keep the PC on at 7 PM | The scrape runs on your PC; weekend runs were missed because it was off. n8n emails you when a run is missed. |
 | No email verification on sign-up | Accounts are created instantly. Can be added with your GoDaddy mailbox. |
 | Company names not normalised | For example, "Accenture" and "Accenture Federal" count as separate companies. |
@@ -182,10 +193,11 @@ It only reads job information. It never applies to jobs.
 
 ## 7. Next phase (options)
 
-**Front-end polish — first round done (3 Nov):** the executive KPI band, per-stack tile sparklines, and the focusable trend chart with gradient fills are built and live (see Day 5). Still open from the original list: refined tabs with icons, a typography and spacing pass, a proper footer, and small interaction touches.
+**Done since the last report:** the **company intelligence page** and the **on-demand live refresh** (the closest practical answer to "match LinkedIn in real time") are both built and live (see Day 8). Front-end polish first round is also done (see Day 5).
 
-**Other options:**
+**Still open (your pick next):**
 1. **Specialisations inside stacks:** split each stack into sub-skills from job titles (e.g. SAP S/4HANA, FICO, ABAP; Salesforce Admin, Developer, CPQ), and improve MERN/Workday matching.
 2. **Weekly email digest:** n8n emails a Monday summary with top movers, the best low-competition jobs and the top hiring companies.
-3. **Scale up:** raise the scrape toward more jobs per stack (balanced against run time).
-4. **Email verification** for new sign-ups.
+3. **Saved searches + alerts:** follow a stack or filter and get emailed when a fresh low-competition job appears.
+4. **Scrape more often** (e.g. 2–3×/day) so the baseline data is never more than a few hours old.
+5. **Email verification** for new sign-ups; **company-name normalisation**; refined tabs/typography/footer polish.
