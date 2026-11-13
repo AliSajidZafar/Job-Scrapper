@@ -1,5 +1,6 @@
 import { getSupabaseServer } from "@/lib/supabase";
 import { getSummary } from "@/lib/summary";
+import { cached, CACHE_HEADERS } from "@/lib/cache";
 import type { ApiResult, SummaryData } from "@/lib/types";
 
 // GET /api/summary — per-stack headline numbers for the main screen:
@@ -10,6 +11,6 @@ export async function GET() {
     return Response.json({ configured: false, data: null } satisfies ApiResult<SummaryData | null>);
   }
 
-  const data = await getSummary(supabase);
-  return Response.json({ configured: true, data } satisfies ApiResult<SummaryData | null>);
+  const data = await cached("summary", 300_000, () => getSummary(supabase));
+  return Response.json({ configured: true, data } satisfies ApiResult<SummaryData | null>, { headers: CACHE_HEADERS });
 }

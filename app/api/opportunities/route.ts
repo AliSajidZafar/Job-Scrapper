@@ -1,5 +1,6 @@
 import { NextRequest } from "next/server";
 import { getSupabaseServer } from "@/lib/supabase";
+import { cached, CACHE_HEADERS } from "@/lib/cache";
 import type { ApiResult, FastJob, Job, OpportunitiesData, Stack } from "@/lib/types";
 
 // Jobs seen within this many hours of the newest snapshot count as "the latest
@@ -19,6 +20,23 @@ export async function GET(req: NextRequest) {
 
   const maxApplicants = Math.min(Math.max(Number(req.nextUrl.searchParams.get("maxApplicants") ?? 100), 1), 1000);
 
+  try {
+    const data = await cached<OpportunitiesData>(`opps:${maxApplicants}`, 300_000, () => compute(supabase, maxApplicants, empty));
+    return Response.json({ configured: true, data } satisfies ApiResult<OpportunitiesData>, { headers: CACHE_HEADERS });
+  } catch (e) {
+    return Response.json({
+      configured: true,
+      data: empty,
+      error: e instanceof Error ? e.message : "Query failed",
+    } satisfies ApiResult<OpportunitiesData>);
+  }
+}
+
+async function compute(
+  supabase: NonNullable<ReturnType<typeof getSupabaseServer>>,
+  maxApplicants: number,
+  empty: OpportunitiesData,
+): Promise<OpportunitiesData> {
   // jobs.scraped_at is only set on first insert, so "latest scrape" comes from
   // job_snapshots, which gets a row for every job on every run.
   const { data: newest } = await supabase
@@ -27,9 +45,7 @@ export async function GET(req: NextRequest) {
     .order("observed_at", { ascending: false })
     .limit(1)
     .maybeSingle();
-  if (!newest) {
-    return Response.json({ configured: true, data: empty } satisfies ApiResult<OpportunitiesData>);
-  }
+  if (!newest) return empty;
   const since = new Date(Date.parse(newest.observed_at as string) - WINDOW_HOURS * 3_600_000).toISOString();
 
   const [lowRes, scannedRes, velRes] = await Promise.all([
@@ -54,9 +70,7 @@ export async function GET(req: NextRequest) {
       .limit(15),
   ]);
 
-  if (lowRes.error) {
-    return Response.json({ configured: true, data: empty, error: lowRes.error.message } satisfies ApiResult<OpportunitiesData>);
-  }
+  if (lowRes.error) throw new Error(lowRes.error.message);
 
   const low: Job[] = (lowRes.data ?? []).map((row: Record<string, unknown>) => {
     const { job_stacks, job_snapshots: _snapshots, ...job } = row;
@@ -87,14 +101,11 @@ export async function GET(req: NextRequest) {
     stacks: extra.get(v.id)?.stacks ?? [],
   }));
 
-  return Response.json({
-    configured: true,
-    data: {
-      as_of: newest.observed_at as string,
-      scanned: scannedRes.count ?? 0,
-      max_applicants: maxApplicants,
-      low,
-      fastest,
-    },
-  } satisfies ApiResult<OpportunitiesData>);
+  return {
+    as_of: newest.observed_at as string,
+    scanned: scannedRes.count ?? 0,
+    max_applicants: maxApplicants,
+    low,
+    fastest,
+  };
 }

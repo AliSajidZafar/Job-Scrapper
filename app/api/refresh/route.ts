@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import { getSupabaseServer } from "@/lib/supabase";
-import { fetchLiveApplicantCount } from "@/lib/linkedin";
+import { fetchLiveApplicants } from "@/lib/linkedin";
+import { clearCache } from "@/lib/cache";
 import type { ApiResult, RefreshResult } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -39,9 +40,9 @@ export async function GET(req: NextRequest) {
     );
   }
 
-  let applicant_count: number | null;
+  let live: { count: number | null; text: string | null };
   try {
-    applicant_count = await fetchLiveApplicantCount(id);
+    live = await fetchLiveApplicants(id);
   } catch (e) {
     return Response.json(
       {
@@ -57,12 +58,13 @@ export async function GET(req: NextRequest) {
   // Only overwrite when we actually read a number; a missing count shouldn't wipe
   // a good stored value. (No job_snapshots row — that would shift the
   // "latest scrape" window the Opportunities tab relies on.)
-  if (applicant_count != null) {
-    await supabase.from("jobs").update({ applicant_count }).eq("id", job.id);
+  if (live.count != null) {
+    await supabase.from("jobs").update({ applicant_count: live.count }).eq("id", job.id);
+    clearCache(); // the cached tiles/lists must reflect the new count on next load
   }
 
   return Response.json({
     configured: true,
-    data: { linkedin_job_id: id, applicant_count, checked_at },
+    data: { linkedin_job_id: id, applicant_count: live.count, applicant_text: live.text, checked_at },
   } satisfies ApiResult<RefreshResult | null>);
 }

@@ -1,4 +1,5 @@
 import { getSupabaseServer } from "@/lib/supabase";
+import { cached, CACHE_HEADERS } from "@/lib/cache";
 import type { ApiResult, Stack, TrendPoint } from "@/lib/types";
 
 // GET /api/trend — daily demand per stack, from the stack_demand view.
@@ -11,32 +12,33 @@ export async function GET() {
     return Response.json({ configured: false, data: [] } satisfies ApiResult<TrendPoint[]>);
   }
 
-  const { data, error } = await supabase
-    .from("stack_demand")
-    .select("day, stack, total_results, scraped_count")
-    .order("day", { ascending: true });
-
-  if (error) {
+  try {
+    const points = await cached<TrendPoint[]>("trend", 300_000, async () => {
+      const { data, error } = await supabase
+        .from("stack_demand")
+        .select("day, stack, total_results, scraped_count")
+        .order("day", { ascending: true });
+      if (error) throw new Error(error.message);
+      return (
+        (data ?? []) as {
+          day: string;
+          stack: Stack;
+          total_results: number | null;
+          scraped_count: number | null;
+        }[]
+      ).map((r) => ({
+        day: r.day,
+        stack: r.stack,
+        job_count: r.total_results ?? r.scraped_count ?? 0,
+        scraped_count: r.scraped_count ?? undefined,
+      }));
+    });
+    return Response.json({ configured: true, data: points } satisfies ApiResult<TrendPoint[]>, { headers: CACHE_HEADERS });
+  } catch (e) {
     return Response.json({
       configured: true,
       data: [],
-      error: error.message,
+      error: e instanceof Error ? e.message : "Query failed",
     } satisfies ApiResult<TrendPoint[]>);
   }
-
-  const points: TrendPoint[] = (
-    (data ?? []) as {
-      day: string;
-      stack: Stack;
-      total_results: number | null;
-      scraped_count: number | null;
-    }[]
-  ).map((r) => ({
-    day: r.day,
-    stack: r.stack,
-    job_count: r.total_results ?? r.scraped_count ?? 0,
-    scraped_count: r.scraped_count ?? undefined,
-  }));
-
-  return Response.json({ configured: true, data: points } satisfies ApiResult<TrendPoint[]>);
 }

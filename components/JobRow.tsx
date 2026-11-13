@@ -11,6 +11,7 @@ import { bandOf, BAND_BADGE, applicantLabel } from "@/lib/applicants";
 export function JobRow({ job }: { job: StackJob }) {
   const url = `https://www.linkedin.com/jobs/view/${job.linkedin_job_id}`;
   const [count, setCount] = useState<number | null>(job.applicant_count);
+  const [liveText, setLiveText] = useState<string | null>(null);
   const [state, setState] = useState<"idle" | "loading" | "done" | "error">("idle");
 
   const refresh = async () => {
@@ -20,6 +21,10 @@ export function JobRow({ job }: { job: StackJob }) {
       const j = (await res.json()) as ApiResult<RefreshResult | null>;
       if (!j.data) throw new Error(j.error ?? "failed");
       setCount(j.data.applicant_count);
+      // LinkedIn's exact wording ("195 applicants" / "Over 200 applicants" /
+      // "Be among the first 25 applicants"), shown verbatim so the figure on the
+      // site matches LinkedIn's page exactly.
+      setLiveText(j.data.applicant_text);
       setState("done");
     } catch {
       setState("error");
@@ -41,7 +46,9 @@ export function JobRow({ job }: { job: StackJob }) {
           <span className="truncate">{job.company}</span>
           {job.location && <span className="text-muted">· {job.location}</span>}
           <SeniorityTag s={job.seniority} />
-          {state === "done" && <span className="text-[10px] font-medium text-good">✓ live · just now</span>}
+          {state === "done" && (
+            <span className="text-[10px] font-medium text-good">✓ {liveText ?? "live"} · matches LinkedIn now</span>
+          )}
           {state === "error" && <span className="text-[10px] font-medium text-crit">couldn&apos;t refresh</span>}
         </div>
       </div>

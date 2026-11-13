@@ -207,6 +207,7 @@ export interface StackJob {
 export interface RefreshResult {
   linkedin_job_id: string;
   applicant_count: number | null;
+  applicant_text: string | null; // LinkedIn's exact wording, e.g. "Over 200 applicants"
   checked_at: string; // ISO time the live check ran
 }
 
