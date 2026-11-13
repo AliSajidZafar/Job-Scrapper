@@ -13,7 +13,7 @@ export async function GET() {
   let data: Record<string, unknown>[];
   try {
     data = await fetchAllRows<Record<string, unknown>>((from, to) =>
-      supabase.from("jobs").select("*, job_stacks(stack)").order("scraped_at", { ascending: false }).range(from, to),
+      supabase.from("jobs").select("*, job_stacks(stack)").order("scraped_at", { ascending: false }).order("id").range(from, to),
     );
   } catch (e) {
     return new Response(e instanceof Error ? e.message : "Export failed", { status: 500 });

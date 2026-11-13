@@ -27,21 +27,26 @@ import { ThemeToggle } from "./ThemeToggle";
 const TABS = ["Trend", "Opportunities", "Competition", "Company Map", "Raw Feed"] as const;
 type Tab = (typeof TABS)[number];
 
-// Date-range (freshness) filter options. Values are how many days back to
-// include, measured from now against each job's scraped_at. "" means no limit.
+// Period filter options, applied to when each job was first captured
+// (scraped_at). "" = no limit. "latest" = the most recent scrape run, resolved
+// on the server from the newest job — not the wall clock — so it stays filled
+// between runs. The day options count back from now.
 type DateRange = "" | "latest" | "7d" | "30d" | "90d";
-const DATE_RANGE_DAYS: Record<Exclude<DateRange, "">, number> = {
-  latest: 1, // the most recent fetch window (past 24h)
+const DATE_RANGE_DAYS: Record<Exclude<DateRange, "" | "latest">, number> = {
   "7d": 7,
   "30d": 30,
   "90d": 90,
 };
 const DATE_RANGE_LABEL: Record<Exclude<DateRange, "">, string> = {
-  latest: "Latest",
+  latest: "Latest scrape",
   "7d": "Past 7 days",
   "30d": "Past 30 days",
   "90d": "Past 90 days",
 };
+// The tabs whose data the Period filter changes (the jobs feed).
+const PERIOD_TABS: readonly string[] = ["Competition", "Raw Feed"];
+// Rows shown per page in the job tables and phone card lists.
+const PAGE_SIZE = 50;
 
 interface Filters {
   stacks: Stack[];
@@ -58,7 +63,9 @@ const EMPTY_FILTERS: Filters = { stacks: [], jobType: "", location: "", easyAppl
 function buildJobsUrl(f: Filters): string {
   const p = new URLSearchParams();
   f.stacks.forEach((s) => p.append("stack", s));
-  if (f.dateRange) {
+  if (f.dateRange === "latest") {
+    p.set("range", "latest");
+  } else if (f.dateRange) {
     const days = DATE_RANGE_DAYS[f.dateRange];
     p.set("from", new Date(Date.now() - days * 86_400_000).toISOString());
   }
@@ -180,6 +187,26 @@ export function Dashboard({ user }: { user: SessionUser | null }) {
           </nav>
 
           <section className="mt-6">
+            {/* The Period filter only changes the jobs feed — say so on the other
+                tabs, so picking a period there doesn't look like it did nothing. */}
+            {filters.dateRange && !PERIOD_TABS.includes(tab) && (
+              <p className="mb-3 rounded-lg border border-line bg-plane/40 px-3 py-2 text-xs text-muted">
+                <span className="font-medium text-ink">Period: {DATE_RANGE_LABEL[filters.dateRange]}</span> applies to the{" "}
+                <button type="button" onClick={() => setTab("Competition")} className="font-medium text-brand hover:underline">
+                  Competition
+                </button>{" "}
+                and{" "}
+                <button type="button" onClick={() => setTab("Raw Feed")} className="font-medium text-brand hover:underline">
+                  Raw Feed
+                </button>{" "}
+                tabs.{" "}
+                {tab === "Trend"
+                  ? "The trend chart always shows the full history."
+                  : tab === "Opportunities"
+                    ? "Opportunities always come from the latest scrape."
+                    : "The company map always covers every tracked job."}
+              </p>
+            )}
             {tab === "Trend" &&
               (bootLoading && trend.length === 0 ? (
                 <ChartSkeleton />
@@ -1125,7 +1152,8 @@ function CardMeta({ children }: { children: React.ReactNode }) {
 
 function CompetitionTable({ jobs, filters }: { jobs: Job[]; filters: Filters }) {
   // Show in posted-date order (newest first) so the Posted column reads in order.
-  const sorted = [...jobs].sort((a, b) => postedKey(b).localeCompare(postedKey(a)));
+  const sorted = useMemo(() => [...jobs].sort((a, b) => postedKey(b).localeCompare(postedKey(a))), [jobs]);
+  const cards = usePaged(sorted);
   return (
     <div>
       <div className="mb-3 space-y-2">
@@ -1138,7 +1166,7 @@ function CompetitionTable({ jobs, filters }: { jobs: Job[]; filters: Filters }) 
         <>
           {/* phone: cards */}
           <ul className="space-y-2 sm:hidden">
-            {sorted.map((j) => (
+            {cards.pageRows.map((j) => (
               <li key={j.id} className="rounded-xl border border-line bg-card p-3.5">
                 <div className="flex items-start justify-between gap-3">
                   <p className="line-clamp-2 text-sm font-medium text-ink">{j.title}</p>
@@ -1166,6 +1194,9 @@ function CompetitionTable({ jobs, filters }: { jobs: Job[]; filters: Filters }) 
               </li>
             ))}
           </ul>
+          <div className="sm:hidden">
+            <Pager {...cards} />
+          </div>
           {/* tablet+ : sortable table (click a header to reorder) */}
           <div className="hidden sm:block">
             <DataTable<Job>
@@ -1192,6 +1223,7 @@ function CompetitionTable({ jobs, filters }: { jobs: Job[]; filters: Filters }) 
 const applyLabel = (e: boolean | null) => (e === true ? "Easy Apply" : e === false ? "External" : "—");
 
 function RawFeedTable({ jobs, filters }: { jobs: Job[]; filters: Filters }) {
+  const cards = usePaged(jobs);
   return (
     <div>
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
@@ -1206,7 +1238,7 @@ function RawFeedTable({ jobs, filters }: { jobs: Job[]; filters: Filters }) {
         <>
           {/* phone: cards */}
           <ul className="space-y-2 sm:hidden">
-            {jobs.map((j) => (
+            {cards.pageRows.map((j) => (
               <li key={j.id} className="rounded-xl border border-line bg-card p-3.5">
                 <p className="line-clamp-2 text-sm font-medium text-ink">{j.title}</p>
                 <p className="mt-0.5 truncate text-xs text-sub">
@@ -1227,6 +1259,9 @@ function RawFeedTable({ jobs, filters }: { jobs: Job[]; filters: Filters }) {
               </li>
             ))}
           </ul>
+          <div className="sm:hidden">
+            <Pager {...cards} />
+          </div>
           {/* tablet+ : sortable table (click a header to reorder) */}
           <div className="hidden sm:block">
             <DataTable<Job>
@@ -1379,10 +1414,16 @@ function DataTable<T extends { id: string }>({
     });
   }, [rows, columns, sort]);
 
-  const toggle = (key: string) =>
+  const paged = usePaged(sorted);
+  const { setPage } = paged;
+
+  const toggle = (key: string) => {
     setSort((s) => (s.key === key ? { key, dir: s.dir === "asc" ? "desc" : "asc" } : { key, dir: "asc" }));
+    setPage(0); // a new sort order starts again from the first page
+  };
 
   return (
+    <>
     <div className="overflow-x-auto rounded-xl border border-line bg-card">
       <table className="w-full text-left text-sm">
         <thead className="border-b border-line text-xs uppercase tracking-wide text-muted">
@@ -1414,7 +1455,7 @@ function DataTable<T extends { id: string }>({
           </tr>
         </thead>
         <tbody>
-          {sorted.map((row) => (
+          {paged.pageRows.map((row) => (
             <Row key={row.id}>
               {columns.map((c) => (
                 <Td key={c.key} className={`${alignClass(c.align)} ${c.cellClass ?? ""}`}>
@@ -1425,6 +1466,58 @@ function DataTable<T extends { id: string }>({
           ))}
         </tbody>
       </table>
+    </div>
+    <Pager {...paged} />
+    </>
+  );
+}
+
+// Splits rows into pages of PAGE_SIZE. The page is clamped, so a list that
+// gets shorter never leaves the view stranded on an empty page.
+function usePaged<T>(rows: T[]) {
+  const [page, setPage] = useState(0);
+  const pageCount = Math.max(1, Math.ceil(rows.length / PAGE_SIZE));
+  const current = Math.min(page, pageCount - 1);
+  const pageRows = useMemo(
+    () => rows.slice(current * PAGE_SIZE, (current + 1) * PAGE_SIZE),
+    [rows, current],
+  );
+  return { pageRows, page: current, pageCount, total: rows.length, setPage };
+}
+
+// "Showing 1–50 of 2,405" + Previous / Next. Hidden when everything fits on one page.
+function Pager({
+  page,
+  pageCount,
+  total,
+  setPage,
+}: {
+  page: number;
+  pageCount: number;
+  total: number;
+  setPage: (p: number) => void;
+}) {
+  if (total <= PAGE_SIZE) return null;
+  const first = page * PAGE_SIZE + 1;
+  const last = Math.min(total, (page + 1) * PAGE_SIZE);
+  const btn =
+    "rounded-md border border-line px-2.5 py-1 font-medium text-sub transition-colors hover:text-ink disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:text-sub";
+  return (
+    <div className="flex flex-wrap items-center justify-between gap-2 px-1 pt-3 text-xs text-muted">
+      <span className="tabular-nums">
+        Showing {first.toLocaleString()}–{last.toLocaleString()} of {total.toLocaleString()}
+      </span>
+      <div className="flex items-center gap-2">
+        <button type="button" className={btn} disabled={page === 0} onClick={() => setPage(page - 1)}>
+          Previous
+        </button>
+        <span className="tabular-nums">
+          Page {page + 1} of {pageCount.toLocaleString()}
+        </span>
+        <button type="button" className={btn} disabled={page >= pageCount - 1} onClick={() => setPage(page + 1)}>
+          Next
+        </button>
+      </div>
     </div>
   );
 }

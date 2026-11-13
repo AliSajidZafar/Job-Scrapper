@@ -24,7 +24,8 @@ export async function getSummary(supabase: SupabaseClient): Promise<SummaryData>
   // in full — a single request is capped at 1000 rows, which would undercount
   // the headline totals and leave the tile below the per-stack drawer count.
   const jobs = await fetchAllRows<{ applicant_count: number | null; job_stacks: { stack: Stack }[] }>(
-    (from, to) => supabase.from("jobs").select("applicant_count, job_stacks(stack)").range(from, to),
+    // Ordered by id so consecutive pages never repeat or skip a row.
+    (from, to) => supabase.from("jobs").select("applicant_count, job_stacks(stack)").order("id").range(from, to),
   );
 
   const agg = new Map<Stack, { captured: number; sum: number; n: number; max: number }>();

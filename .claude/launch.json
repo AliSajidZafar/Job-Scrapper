@@ -2,10 +2,16 @@
   "version": "0.0.1",
   "configurations": [
     {
+      "name": "mvi",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["--prefix", "C:/Users/Mavericks United/Documents/Mavericks/Job Scrapper", "run", "start", "--", "-p", "3006"],
+      "port": 3006
+    },
+    {
       "name": "dev",
       "runtimeExecutable": "npm",
-      "runtimeArgs": ["run", "dev"],
-      "port": 3000
+      "runtimeArgs": ["--prefix", "C:/Users/Mavericks United/Documents/Mavericks/Job Scrapper", "run", "dev", "--", "-p", "3007"],
+      "port": 3007
     }
   ]
 }

@@ -52,6 +52,7 @@ export async function GET(req: NextRequest) {
           .from("jobs")
           .select("id, linkedin_job_id, title, company, location, job_type, applicant_count, posted_at, scraped_at, job_stacks!inner(stack)")
           .eq("job_stacks.stack", stack)
+          .order("id")
           .range(from, to) as unknown as PromiseLike<{ data: Row[] | null; error: { message: string } | null }>,
     );
   } catch (e) {
