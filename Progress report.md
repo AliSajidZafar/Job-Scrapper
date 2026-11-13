@@ -39,8 +39,9 @@ It only reads job information. It never applies to jobs.
 | Credentials scrubbed from GitHub | ✅ Old password files erased from all history; ignore rules hardened (10 Nov) |
 | Project moved off OneDrive | ✅ Now in a normal folder to stop file-sync corruption (10 Nov) |
 | Period filter shows true totals | ✅ Fixed 500-row cap; tables now page (13 Nov) |
-| Live applicant refresh | ✅ Per-job ↻ button fetches the current count from LinkedIn on demand (13 Nov) |
+| Live applicant refresh | ✅ Per-job ↻ button fetches the current count from LinkedIn on demand, shown in LinkedIn's exact wording (13 Nov) |
 | Company intelligence | ✅ Click a company for its full hiring breakdown (13 Nov) |
+| Faster backend | ✅ In-memory caching; repeat loads ~200ms instead of 1.7–3.6s (13 Nov) |
 
 **Data so far:** all 20 stacks carry live data. The latest run (9 Nov) and earlier runs add up to **1,692 tracked postings** and about **98,440 recorded applicants** across the stacks. The dashboard refreshes with each scrape.
 
@@ -143,6 +144,11 @@ It only reads job information. It never applies to jobs.
 - **Live applicant refresh — the closest thing to "matches LinkedIn right now".** Because the data is a daily snapshot, applicant counts drift during the day. Every job (in the stack and company drill-downs) now has a small **↻ refresh button**: click it and the site fetches *that one job's* current applicant count straight from LinkedIn and updates it, showing "✓ live · just now". It is a single, you-initiated request — polite, not bulk automation — and only works on jobs we already track. (Example seen on the day: a role stored at 139 applicants was 194 live.)
 - **Company intelligence page.** In the **Company Map** tab, company names are now clickable. Clicking one opens a panel showing how many roles that company is hiring, which stacks they hire for (with a breakdown bar), their applicant competition (average / median / most), the experience-level split, and the full list of their postings — each with its own live-refresh button. (Example: Deloitte — 179 roles across 11 stacks.)
 - All of the above is built, deployed and live. The data endpoints were verified against the live site; the on-screen panels sit behind sign-in, so please click a company and try the ↻ button once when you're logged in.
+
+### Day 9 (13 Nov): Faster backend + exact-match refresh
+- **Made the dashboard much faster.** Every page load used to recompute all its numbers from the database from scratch — including a heavy applicant-trend calculation — so the main data took **1.7 to 3.6 seconds** each time. I added a short-lived memory cache on the server: the work is done once and reused, so **repeat visits and multiple people viewing at the same time now load in about 200 milliseconds** (for example, the main summary went from 3.6s to 0.2s). The first visit in each five-minute window still does the full work to refill the cache; everything after that is fast. A single-job refresh automatically clears the cache, so nothing is ever shown stale.
+- **Made the ↻ live refresh match LinkedIn exactly.** It now shows LinkedIn's **precise wording** rather than a flattened number — "195 applicants", "Over 200 applicants", or "Be among the first 25 applicants" — and the row confirms "✓ matches LinkedIn now". Verified the same job read 195 on both your site and LinkedIn's page at the same moment.
+- Built, deployed and live; live load times confirmed. The refresh wording shows on the authed dashboard, so please try the ↻ button once when signed in.
 
 ---
 
