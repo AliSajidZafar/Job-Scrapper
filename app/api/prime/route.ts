@@ -8,7 +8,7 @@ import type { ApiResult, PrimeData, PrimeJob, Stack } from "@/lib/types";
 // FRESH (from the latest scrape), FEW applicants (<= 25), in a HIGH-DEMAND stack
 // (open roles >= the cross-stack median). Velocity, when known, lifts a job up.
 const LATEST_RUN_HOURS = 6;
-const MAX_PRIME = 15;
+const MAX_PRIME = 20;
 
 export async function GET() {
   const supabase = getSupabaseServer();
@@ -122,8 +122,9 @@ async function compute(supabase: NonNullable<ReturnType<typeof getSupabaseServer
   });
 
   // Spread across stacks (at most PER_STACK each) so the panel spans the market
-  // rather than filling with one stack's listings.
-  const PER_STACK = 2;
+  // rather than filling with one stack's listings. 3 across the ~10 high-demand
+  // stacks leaves plenty of headroom to fill all MAX_PRIME slots.
+  const PER_STACK = 3;
   const takenByStack = new Map<Stack, number>();
   const picked: PrimeJob[] = [];
   for (const j of jobs) {
