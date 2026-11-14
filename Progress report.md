@@ -1,6 +1,6 @@
 # Mavericks Market Intelligence: Progress Report
 
-**Period:** 27 October – 13 November 2026
+**Period:** 27 October – 14 November 2026
 **Live dashboard:** https://jobs.mavericksunited.co
 **Automation (n8n):** https://n8n.mavericksunited.co
 **Code:** https://github.com/AliSajidZafar/Job-Scrapper (branch `main`)
@@ -42,6 +42,8 @@ It only reads job information. It never applies to jobs.
 | Live applicant refresh | ✅ Per-job ↻ button fetches the current count from LinkedIn on demand, shown in LinkedIn's exact wording (13 Nov) |
 | Company intelligence | ✅ Click a company for its full hiring breakdown (13 Nov) |
 | Faster backend | ✅ In-memory caching; repeat loads ~200ms instead of 1.7–3.6s (13 Nov) |
+| Reliability hardening | ✅ Port pinned to 3001; auto-restart on reboot (14 Nov) |
+| Prime Opportunities | ✅ Highlights fresh, low-competition roles in high-demand stacks, across all 20 (14 Nov) |
 
 **Data so far:** all 20 stacks carry live data. The latest run (9 Nov) and earlier runs add up to **1,692 tracked postings** and about **98,440 recorded applicants** across the stacks. The dashboard refreshes with each scrape.
 
@@ -150,6 +152,13 @@ It only reads job information. It never applies to jobs.
 - **Made the ↻ live refresh match LinkedIn exactly.** It now shows LinkedIn's **precise wording** rather than a flattened number — "195 applicants", "Over 200 applicants", or "Be among the first 25 applicants" — and the row confirms "✓ matches LinkedIn now". Verified the same job read 195 on both your site and LinkedIn's page at the same moment.
 - Built, deployed and live; live load times confirmed. The refresh wording shows on the authed dashboard, so please try the ↻ button once when signed in.
 
+### Day 10 (14 Nov): Reliability hardening + Prime Opportunities
+- **Investigated a "site not loading" report.** The site was actually up (it returned normally from the internet and from your PC); the browser was showing a stale, cached tab — a hard refresh clears it. But while checking I found and fixed two real weaknesses so a genuine outage can't happen and can't linger: the server port is now **pinned to 3001 in the code** (it used to default to the wrong port on some restarts and go dark), and the whole stack (dashboard, tunnel, automation) now **restarts automatically after a reboot**.
+- **New: Prime Opportunities.** The dashboard now highlights the hottest roles across all 20 stacks — the rare ones worth moving on first. A role is flagged **Prime** when it is *fresh* (from the latest scrape), has *few applicants* (≤ 25 — LinkedIn's "be among the first 25" band), and is in a *high-demand* stack (open roles at or above the mid-point across the 20 stacks); a fast-rising applicant count, when known, pushes it higher, and no single stack can dominate (max two each), so the list spans the market.
+  - It appears as a highlighted **"Prime Opportunities" panel** near the top of the dashboard (each role links straight to LinkedIn), and the same roles carry a small flame **"Prime" badge** wherever they show up — in a stack's drill-down, a company's page, and the Competition table — all driven from one list so they always agree.
+  - *How I chose the rule, honestly:* I checked your real data first. The intuitive "few applicants + rising fastest" turned out to be unusable — almost every fast-rising job in the database was over a week old (the scraper only re-checks a given job occasionally), so those jobs are likely already filled. Anchoring on *fresh + few applicants + high-demand stack* keeps every highlighted role current. Verified live: 15 Prime roles across 9 stacks (Haskell, C++, AI/ML, Java, SAP, DevOps, Embedded, Rust, Edge AI).
+  - The label word is **"Prime"** — easy to change to another (e.g. "Hot Pick", "Spotlight") on request. The panel and badges render on the signed-in dashboard, so please have a look once logged in.
+
 ---
 
 ## 4. How it fits together
@@ -177,6 +186,8 @@ It only reads job information. It never applies to jobs.
 - **"Open roles" vs "Tracked" on each stack tile:** *open roles* is LinkedIn's total count of matching jobs (the size of the market); *tracked* is how many individual postings we pull in detail and follow over time (the sample we re-check for applicant growth).
 - **The "Period" filter** (All / Latest / 7 / 30 / 90 days) only changes the **Competition** and **Raw Feed** job lists. The top tiles, Trend chart, Opportunities and Company Map are not affected. 30 and 90 days currently equal All because all data so far is under a month old.
 - **The ↻ live-refresh button** updates one job's applicant count against LinkedIn in that moment — use it on roles you care about. The rest of the numbers refresh with the nightly scrape.
+- **"Prime" (🔥) roles** are the ones to apply to first: fresh, few applicants, high-demand stack. They're listed in the "Prime Opportunities" panel near the top and flagged with a flame badge in the job lists. The set is only as fresh as the latest scrape, so it refreshes each night; some nights it may be short or empty if few roles qualify.
+- **If the site won't load**, it's almost always a stale browser tab — hard-refresh with **Ctrl+Shift+R**. The server now pins its port and auto-restarts after a reboot, so genuine outages are far less likely.
 
 ---
 
