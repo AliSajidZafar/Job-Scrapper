@@ -202,6 +202,24 @@ export interface StackJob {
   applicants_per_hour: number | null;
 }
 
+// GET /api/prime — the hottest low-competition, high-demand roles across all
+// stacks (see lib/prime.ts for what qualifies).
+export interface PrimeJob {
+  id: string;
+  linkedin_job_id: string;
+  title: string;
+  company: string;
+  location: string | null;
+  stacks: Stack[];
+  applicant_count: number;
+  open_roles: number; // demand: the best (largest) open-roles total among its stacks
+  applicants_per_hour: number | null; // bonus demand signal when known
+}
+export interface PrimeData {
+  as_of: string | null; // latest scrape time (ISO) — these are fresh roles
+  jobs: PrimeJob[]; // hottest first
+}
+
 // GET /api/refresh?id=<linkedin_job_id> — a single job's current applicant
 // count, fetched live from LinkedIn on demand.
 export interface RefreshResult {

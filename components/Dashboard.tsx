@@ -10,6 +10,7 @@ import {
   type FastJob,
   type Job,
   type OpportunitiesData,
+  type PrimeData,
   type ScrapeRun,
   type SessionUser,
   type Stack,
@@ -22,6 +23,7 @@ import { TrendChart } from "./TrendChart";
 import { Sparkline } from "./Sparkline";
 import { StackDetail } from "./StackDetail";
 import { CompanyDetail } from "./CompanyDetail";
+import { PrimePanel, PrimeBadge, PrimeProvider, usePrimeIds } from "./Prime";
 import { Logo } from "./Logo";
 import { ThemeToggle } from "./ThemeToggle";
 
@@ -88,6 +90,7 @@ export function Dashboard({ user }: { user: SessionUser | null }) {
   const [jobs, setJobs] = useState<Job[]>([]);
   const [companyMap, setCompanyMap] = useState<CompanyStackRow[]>([]);
   const [opps, setOpps] = useState<OpportunitiesData | null>(null);
+  const [prime, setPrime] = useState<PrimeData | null>(null);
   // Two loading tracks: `bootLoading` for the filter-independent data fetched
   // once on mount, `jobsLoading` for the filter-dependent jobs feed.
   const [bootLoading, setBootLoading] = useState(true);
@@ -99,12 +102,13 @@ export function Dashboard({ user }: { user: SessionUser | null }) {
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      const [statusRes, summaryRes, trendRes, mapRes, oppsRes] = await Promise.all([
+      const [statusRes, summaryRes, trendRes, mapRes, oppsRes, primeRes] = await Promise.all([
         fetchJson<ScrapeRun | null>("/api/status"),
         fetchJson<SummaryData | null>("/api/summary"),
         fetchJson<TrendPoint[]>("/api/trend"),
         fetchJson<CompanyStackRow[]>("/api/company-map"),
         fetchJson<OpportunitiesData>("/api/opportunities"),
+        fetchJson<PrimeData>("/api/prime"),
       ]);
       if (cancelled) return;
       setConfigured(statusRes.configured);
@@ -113,6 +117,7 @@ export function Dashboard({ user }: { user: SessionUser | null }) {
       setTrend(trendRes.data ?? []);
       setCompanyMap(mapRes.data ?? []);
       setOpps(oppsRes.data ?? null);
+      setPrime(primeRes.data ?? null);
       setBootLoading(false);
     })();
     return () => {
@@ -137,7 +142,13 @@ export function Dashboard({ user }: { user: SessionUser | null }) {
     };
   }, [filters]);
 
+  const primeIds = useMemo(
+    () => new Set((prime?.jobs ?? []).map((j) => j.linkedin_job_id)),
+    [prime],
+  );
+
   return (
+    <PrimeProvider ids={primeIds}>
     <div className="min-h-screen">
       <header className="sticky top-0 z-20 border-b border-line bg-card/90 backdrop-blur">
         <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4">
@@ -165,7 +176,7 @@ export function Dashboard({ user }: { user: SessionUser | null }) {
       <main className="mx-auto max-w-6xl space-y-8 overflow-x-clip px-4 py-8 sm:py-8">
         {configured === false && <NotConfigured />}
 
-        <SummarySection summary={summary} trend={trend} loading={bootLoading && !summary} />
+        <SummarySection summary={summary} trend={trend} prime={prime} loading={bootLoading && !summary} />
 
         <div>
           <FilterBar filters={filters} setFilters={setFilters} />
@@ -232,6 +243,7 @@ export function Dashboard({ user }: { user: SessionUser | null }) {
         </div>
       </main>
     </div>
+    </PrimeProvider>
   );
 }
 
@@ -280,10 +292,12 @@ function ChartSkeleton() {
 function SummarySection({
   summary,
   trend,
+  prime,
   loading,
 }: {
   summary: SummaryData | null;
   trend: TrendPoint[];
+  prime: PrimeData | null;
   loading: boolean;
 }) {
   // Per-stack open-roles history (oldest → newest) for the tile sparklines,
@@ -295,6 +309,8 @@ function SummarySection({
   return (
     <section className="space-y-6">
       <KpiBand summary={summary} totalByDay={totalByDay} loading={loading} />
+
+      <PrimePanel data={prime} loading={loading} />
 
       <div>
         <div className="mb-3">
@@ -1155,6 +1171,7 @@ function CompetitionTable({ jobs, filters }: { jobs: Job[]; filters: Filters }) 
   // Show in posted-date order (newest first) so the Posted column reads in order.
   const sorted = useMemo(() => [...jobs].sort((a, b) => postedKey(b).localeCompare(postedKey(a))), [jobs]);
   const cards = usePaged(sorted);
+  const primeIds = usePrimeIds();
   return (
     <div>
       <div className="mb-3 space-y-2">
@@ -1170,7 +1187,14 @@ function CompetitionTable({ jobs, filters }: { jobs: Job[]; filters: Filters }) 
             {cards.pageRows.map((j) => (
               <li key={j.id} className="rounded-xl border border-line bg-card p-3.5">
                 <div className="flex items-start justify-between gap-3">
-                  <p className="line-clamp-2 text-sm font-medium text-ink">{j.title}</p>
+                  <p className="line-clamp-2 text-sm font-medium text-ink">
+                    {primeIds.has(j.linkedin_job_id) && (
+                      <span className="mr-1.5 align-middle">
+                        <PrimeBadge compact />
+                      </span>
+                    )}
+                    {j.title}
+                  </p>
                   {j.applicant_count != null && <BandChip n={j.applicant_count} />}
                 </div>
                 <p className="mt-0.5 truncate text-xs text-sub">
@@ -1204,7 +1228,12 @@ function CompetitionTable({ jobs, filters }: { jobs: Job[]; filters: Filters }) 
               rows={jobs}
               initial={{ key: "posted", dir: "desc" }}
               columns={[
-                { key: "title", label: "Title", cellClass: "font-medium text-ink", sort: { type: "text", value: (j) => j.title.toLowerCase() }, render: (j) => j.title },
+                { key: "title", label: "Title", cellClass: "font-medium text-ink", sort: { type: "text", value: (j) => j.title.toLowerCase() }, render: (j) => (
+                  <span className="flex items-center gap-1.5">
+                    {primeIds.has(j.linkedin_job_id) && <PrimeBadge compact />}
+                    <span>{j.title}</span>
+                  </span>
+                ) },
                 { key: "company", label: "Company", sort: { type: "text", value: (j) => j.company.toLowerCase() }, render: (j) => j.company },
                 { key: "stack", label: "Stack", render: (j) => <StackTags stacks={j.stacks} /> },
                 { key: "location", label: "Location", sort: { type: "text", value: (j) => (j.location ?? "").toLowerCase() }, render: (j) => j.location },

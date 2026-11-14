@@ -4,12 +4,14 @@ import { useState } from "react";
 import type { ApiResult, RefreshResult, StackJob } from "@/lib/types";
 import { SENIORITY_LABEL, type Seniority } from "@/lib/seniority";
 import { bandOf, BAND_BADGE, applicantLabel } from "@/lib/applicants";
+import { PrimeBadge, usePrimeIds } from "./Prime";
 
 // One posting in a drill-down list, with a live "refresh" control that fetches
 // this job's current applicant count from LinkedIn on demand. Shared by the
 // stack and company drawers.
 export function JobRow({ job }: { job: StackJob }) {
   const url = `https://www.linkedin.com/jobs/view/${job.linkedin_job_id}`;
+  const prime = usePrimeIds().has(job.linkedin_job_id);
   const [count, setCount] = useState<number | null>(job.applicant_count);
   const [liveText, setLiveText] = useState<string | null>(null);
   const [state, setState] = useState<"idle" | "loading" | "done" | "error">("idle");
@@ -46,6 +48,7 @@ export function JobRow({ job }: { job: StackJob }) {
           <span className="truncate">{job.company}</span>
           {job.location && <span className="text-muted">· {job.location}</span>}
           <SeniorityTag s={job.seniority} />
+          {prime && <PrimeBadge />}
           {state === "done" && (
             <span className="text-[10px] font-medium text-good">✓ {liveText ?? "live"} · matches LinkedIn now</span>
           )}

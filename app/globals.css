@@ -24,6 +24,9 @@
   --good: #0a8f0a;
   --warn: #b07f00;
   --crit: #c93838;
+  --prime: #d9480f; /* "hot opportunity" flame — distinct from brand teal & warn gold */
+  --prime-ink: #ffffff;
+  --prime-soft: #fdebd9;
   /* categorical series (10 slots, CVD-validated light+dark, fixed order) */
   --s-sap: #2a78d6;
   --s-salesforce: #eb6834;
@@ -68,6 +71,9 @@
     --good: #0ca30c;
     --warn: #fab219;
     --crit: #e05555;
+    --prime: #fb7a3c;
+    --prime-ink: #1c0a03;
+    --prime-soft: #35190c;
     --s-sap: #3987e5;
     --s-salesforce: #d95926;
     --s-mern: #199e70;
@@ -108,6 +114,9 @@
   --good: #0ca30c;
   --warn: #fab219;
   --crit: #e05555;
+  --prime: #fb7a3c;
+  --prime-ink: #1c0a03;
+  --prime-soft: #35190c;
   --s-sap: #3987e5;
   --s-salesforce: #d95926;
   --s-mern: #199e70;
@@ -146,6 +155,9 @@
   --color-good: var(--good);
   --color-warn: var(--warn);
   --color-crit: var(--crit);
+  --color-prime: var(--prime);
+  --color-prime-ink: var(--prime-ink);
+  --color-prime-soft: var(--prime-soft);
   --font-sans: var(--font-geist-sans), system-ui, sans-serif;
 }
 
