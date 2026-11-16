@@ -6,37 +6,18 @@ import type { ApiResult, RefreshResult } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
-// GET /api/refresh?id=<linkedin_job_id> — fetch this one job's current applicant
-// count from LinkedIn and store it. Only jobs we already track can be refreshed,
-// so this can't be used as an open LinkedIn proxy.
+// GET /api/refresh?id=<linkedin_job_id> — fetch this one job's CURRENT applicant
+// count from LinkedIn (its exact wording), on demand. Works for any job shown on
+// the site: the tracked drill-downs and the Prime live drawer (whose roles come
+// straight from LinkedIn search and usually aren't tracked). When the job IS one
+// we track, we also sync the stored count so the tiles/lists stay in step; a
+// live-only job just returns its count without writing anything.
 export async function GET(req: NextRequest) {
-  const supabase = getSupabaseServer();
-  if (!supabase) {
-    return Response.json({ configured: false, data: null } satisfies ApiResult<RefreshResult | null>);
-  }
-
   const id = (req.nextUrl.searchParams.get("id") ?? "").trim();
   if (!/^\d{5,}$/.test(id)) {
     return Response.json(
       { configured: true, data: null, error: "Invalid job id" } satisfies ApiResult<RefreshResult | null>,
       { status: 400 },
-    );
-  }
-
-  const { data: job, error: jobErr } = await supabase
-    .from("jobs")
-    .select("id, linkedin_job_id")
-    .eq("linkedin_job_id", id)
-    .maybeSingle();
-  if (jobErr) {
-    return Response.json(
-      { configured: true, data: null, error: jobErr.message } satisfies ApiResult<RefreshResult | null>,
-    );
-  }
-  if (!job) {
-    return Response.json(
-      { configured: true, data: null, error: "This job isn't tracked" } satisfies ApiResult<RefreshResult | null>,
-      { status: 404 },
     );
   }
 
@@ -54,17 +35,30 @@ export async function GET(req: NextRequest) {
     );
   }
 
-  const checked_at = new Date().toISOString();
-  // Only overwrite when we actually read a number; a missing count shouldn't wipe
-  // a good stored value. (No job_snapshots row — that would shift the
-  // "latest scrape" window the Opportunities tab relies on.)
-  if (live.count != null) {
-    await supabase.from("jobs").update({ applicant_count: live.count }).eq("id", job.id);
-    clearCache(); // the cached tiles/lists must reflect the new count on next load
+  // If this job is tracked, keep the stored count in sync so the tiles/lists
+  // reflect it too. Only overwrite when we actually read a number — a missing
+  // count shouldn't wipe a good stored value. (No job_snapshots row: that would
+  // shift the "latest scrape" window the Opportunities tab relies on.)
+  const supabase = getSupabaseServer();
+  if (supabase && live.count != null) {
+    const { data: job } = await supabase
+      .from("jobs")
+      .select("id")
+      .eq("linkedin_job_id", id)
+      .maybeSingle();
+    if (job) {
+      await supabase.from("jobs").update({ applicant_count: live.count }).eq("id", job.id);
+      clearCache(); // the cached tiles/lists must reflect the new count on next load
+    }
   }
 
   return Response.json({
     configured: true,
-    data: { linkedin_job_id: id, applicant_count: live.count, applicant_text: live.text, checked_at },
+    data: {
+      linkedin_job_id: id,
+      applicant_count: live.count,
+      applicant_text: live.text,
+      checked_at: new Date().toISOString(),
+    },
   } satisfies ApiResult<RefreshResult | null>);
 }

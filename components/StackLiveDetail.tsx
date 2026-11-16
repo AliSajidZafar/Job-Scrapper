@@ -1,7 +1,14 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { STACK_COLOR_VAR, type ApiResult, type Stack, type StackLiveData, type StackLiveJob } from "@/lib/types";
+import {
+  STACK_COLOR_VAR,
+  type ApiResult,
+  type RefreshResult,
+  type Stack,
+  type StackLiveData,
+  type StackLiveJob,
+} from "@/lib/types";
 import { bandOf } from "@/lib/applicants";
 import { ApplicantBadge } from "./JobRow";
 
@@ -129,7 +136,28 @@ export function StackLiveDetail({ stack, onClose }: { stack: Stack | null; onClo
 
 function LiveRow({ job, rank }: { job: StackLiveJob; rank: number }) {
   const url = `https://www.linkedin.com/jobs/view/${job.linkedin_job_id}`;
-  const hot = job.applicant_count != null && bandOf(job.applicant_count) === "fresh";
+  const [count, setCount] = useState<number | null>(job.applicant_count);
+  const [liveText, setLiveText] = useState<string | null>(null);
+  const [state, setState] = useState<"idle" | "loading" | "done" | "error">("idle");
+  const hot = count != null && bandOf(count) === "fresh";
+
+  // Re-read this one job's CURRENT applicant count from LinkedIn on demand, and
+  // show LinkedIn's exact wording — so the figure on the site matches the figure
+  // on LinkedIn's page at that moment.
+  const refresh = async () => {
+    setState("loading");
+    try {
+      const res = await fetch(`/api/refresh?id=${encodeURIComponent(job.linkedin_job_id)}`);
+      const j = (await res.json()) as ApiResult<RefreshResult | null>;
+      if (!j.data) throw new Error(j.error ?? "failed");
+      setCount(j.data.applicant_count);
+      setLiveText(j.data.applicant_text);
+      setState("done");
+    } catch {
+      setState("error");
+    }
+  };
+
   return (
     <li className="flex items-center gap-3 bg-card px-4 py-3 transition-colors hover:bg-brand-soft/40">
       <span className="w-5 shrink-0 text-center text-xs font-semibold tabular-nums text-muted">{rank}</span>
@@ -151,15 +179,35 @@ function LiveRow({ job, rank }: { job: StackLiveJob; rank: number }) {
               Hot
             </span>
           )}
+          {state === "done" && (
+            <span className="text-[10px] font-medium text-good">✓ {liveText ?? "live"} · matches LinkedIn now</span>
+          )}
+          {state === "error" && <span className="text-[10px] font-medium text-crit">couldn&apos;t refresh</span>}
         </div>
       </div>
       <div className="shrink-0 text-right">
-        {job.applicant_count != null ? (
-          <ApplicantBadge n={job.applicant_count} />
-        ) : (
-          <span className="text-xs text-muted">—</span>
-        )}
+        {count != null ? <ApplicantBadge n={count} /> : <span className="text-xs text-muted">—</span>}
       </div>
+      <button
+        onClick={refresh}
+        disabled={state === "loading"}
+        title="Fetch this job's current applicant count from LinkedIn"
+        aria-label="Refresh applicant count from LinkedIn"
+        className="grid h-7 w-7 shrink-0 place-items-center rounded-lg border border-line text-sub transition-colors hover:border-brand hover:text-brand disabled:cursor-not-allowed disabled:opacity-50"
+      >
+        <svg
+          viewBox="0 0 24 24"
+          className={`h-3.5 w-3.5 ${state === "loading" ? "animate-spin" : ""}`}
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <path d="M21 2v6h-6M3 22v-6h6" />
+          <path d="M3.5 10a9 9 0 0 1 14.85-3.36L21 8M20.5 14a9 9 0 0 1-14.85 3.36L3 16" />
+        </svg>
+      </button>
     </li>
   );
 }
