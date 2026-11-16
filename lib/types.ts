@@ -262,3 +262,24 @@ export interface StackDetail {
   companies: { company: string; count: number; avg_applicants: number | null }[]; // top hirers
   jobs: StackJob[]; // individual postings, fewest applicants first
 }
+
+// GET /api/stack-live?stack=<name> — the hottest LIVE roles for a Prime stack,
+// pulled from LinkedIn on demand (not the tracked sample): fresh listings from
+// LinkedIn's guest search, each with its current applicant count, sorted with
+// the fewest applicants (the "hottest", lowest-competition roles) first.
+export interface StackLiveJob {
+  linkedin_job_id: string;
+  title: string;
+  company: string;
+  location: string | null;
+  posted: string | null; // ISO date from the listing ("datetime" attr)
+  applicant_count: number | null; // live count; null if LinkedIn didn't report one
+  applicant_text: string | null; // LinkedIn's exact wording, e.g. "Be among the first 25 applicants"
+}
+export interface StackLiveData {
+  stack: Stack;
+  as_of: string; // ISO time this live pull ran
+  jobs: StackLiveJob[]; // hottest (fewest applicants) first
+  scanned: number; // how many live listings were checked to produce the list
+  partial: boolean; // true when LinkedIn had fewer than the target (20) fresh roles
+}

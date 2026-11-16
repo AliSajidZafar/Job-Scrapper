@@ -22,6 +22,7 @@ import { BANDS, BAND_BADGE, BAND_DOT, bandDef, bandOf, applicantLabel, type Band
 import { TrendChart } from "./TrendChart";
 import { Sparkline } from "./Sparkline";
 import { StackDetail } from "./StackDetail";
+import { StackLiveDetail } from "./StackLiveDetail";
 import { CompanyDetail } from "./CompanyDetail";
 import { PrimePanel, PrimeBadge, PrimeProvider, usePrimeIds } from "./Prime";
 import { PRIME_TOP_N, formatScore } from "@/lib/prime";
@@ -301,8 +302,10 @@ function SummarySection({
   // Per-stack open-roles history (oldest → newest) for the tile sparklines,
   // plus a whole-market total per day for the headline sparkline.
   const { byStack, totalByDay } = buildHistories(trend);
-  // The stack whose drill-down drawer is open (from a Prime card or a stack tile).
+  // The stack whose tracked drill-down drawer is open (from a "Demand by stack" tile).
   const [selected, setSelected] = useState<Stack | null>(null);
+  // The Prime stack whose LIVE hottest-roles drawer is open (from a Prime card).
+  const [liveStack, setLiveStack] = useState<Stack | null>(null);
   const primeStacks = prime?.stacks ?? [];
 
   return (
@@ -325,7 +328,7 @@ function SummarySection({
                 key={p.stack}
                 s={p}
                 history={byStack.get(p.stack) ?? []}
-                onSelect={setSelected}
+                onSelect={setLiveStack}
                 prime={p}
               />
             ))}
@@ -359,6 +362,7 @@ function SummarySection({
       </div>
 
       <StackDetail stack={selected} onClose={() => setSelected(null)} />
+      <StackLiveDetail stack={liveStack} onClose={() => setLiveStack(null)} />
     </section>
   );
 }

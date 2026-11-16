@@ -59,7 +59,7 @@ export function PrimePanel({ count, children }: { count?: number; children: Reac
             </h2>
             <p className="text-xs text-muted">
               The stacks with the most open roles for the fewest applicants, ranked by opportunity score (open
-              roles ÷ avg applicants). Select one for the full breakdown.
+              roles ÷ avg applicants). Select one for its hottest roles, pulled live from LinkedIn.
             </p>
           </div>
         </div>
