@@ -55,9 +55,9 @@ export function parseApplicants(html: string): LiveApplicants {
   return { count: digits ? parseInt(digits[1], 10) : null, text };
 }
 
-export async function fetchLiveApplicants(linkedinJobId: string): Promise<LiveApplicants> {
+export async function fetchLiveApplicants(linkedinJobId: string, timeoutMs = 12_000): Promise<LiveApplicants> {
   const ctrl = new AbortController();
-  const timer = setTimeout(() => ctrl.abort(), 12_000);
+  const timer = setTimeout(() => ctrl.abort(), timeoutMs);
   try {
     const res = await fetch(GUEST_JOB + encodeURIComponent(linkedinJobId), {
       headers: { "User-Agent": UA, "Accept-Language": "en-US,en;q=0.9" },

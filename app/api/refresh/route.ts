@@ -23,18 +23,19 @@ export async function GET(req: NextRequest) {
 
   // Read the live count, retrying on a transient failure (LinkedIn rate-limits
   // the data-center IP with a 429 when several refreshes land close together).
-  // A few spaced attempts turn most of those "couldn't refresh" misses into a
-  // real figure.
+  // Two spaced attempts with a short per-attempt timeout recover most of those
+  // misses while keeping the whole request well under the tunnel's timeout (so
+  // it always returns our JSON, never a gateway error page).
   let live: { count: number | null; text: string | null } | null = null;
   let lastErr: unknown = null;
-  for (let attempt = 0; attempt < 3; attempt++) {
+  for (let attempt = 0; attempt < 2; attempt++) {
     try {
-      live = await fetchLiveApplicants(id);
+      live = await fetchLiveApplicants(id, 7_000);
       lastErr = null;
       break;
     } catch (e) {
       lastErr = e;
-      if (attempt < 2) await delay(600 + attempt * 900 + Math.random() * 400);
+      if (attempt < 1) await delay(700 + Math.random() * 400);
     }
   }
   if (!live) {
