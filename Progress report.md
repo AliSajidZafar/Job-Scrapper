@@ -159,6 +159,12 @@ It only reads job information. It never applies to jobs.
   - *How I chose the rule, honestly:* I checked your real data first. The intuitive "few applicants + rising fastest" turned out to be unusable — almost every fast-rising job in the database was over a week old (the scraper only re-checks a given job occasionally), so those jobs are likely already filled. Anchoring on *fresh + few applicants + high-demand stack* keeps every highlighted role current. Verified live: 15 Prime roles across 9 stacks (Haskell, C++, AI/ML, Java, SAP, DevOps, Embedded, Rust, Edge AI).
   - The label word is **"Prime"** — easy to change to another (e.g. "Hot Pick", "Spotlight") on request. The panel and badges render on the signed-in dashboard, so please have a look once logged in.
 
+### Day 11 (16 Nov): Prime panel could blank out — fixed
+- **You reported the Prime panel wasn't showing.** First I checked it wasn't a lost deploy: all the earlier work (Prime Opportunities and the increase to 20 roles) was committed, pushed and live, and the server was healthy. The panel was simply **empty that day**, and an empty panel hides itself — so nothing appeared.
+- **Why it was empty — the real cause.** A role only counts as "Prime" if it's in a *high-demand* stack, and "high demand" was set as a **fixed number: 5,000 open roles**. LinkedIn's reported job totals drift up and down from day to day, all together. On this day they came in lower, so only three small stacks cleared 5,000 — and none of the 93 fresh, low-applicant roles happened to be in those three. Result: nothing qualified, and the panel went blank. The day before, the same code showed 20 roles only because that run's totals were higher. A fixed cut-off was fragile: whenever the whole market's reported numbers dip, the panel disappears.
+- **The fix.** "High demand" is now measured **relative to the current market** — a stack qualifies when it's at or above the **mid-point (median) of all stacks that day**, recalculated on every request. So the bar moves with the market instead of against a frozen number, and the panel keeps showing the hottest roles rather than vanishing. (This is what the design originally intended; it had been hard-coded by mistake.)
+- Built, deployed and verified live: **20 Prime roles across 10 stacks** (C++, SAP, AI/ML, Java, Salesforce, .NET, Rust, DevOps, ServiceNow, Data Engineering) — a broader, more mainstream spread than before. Hard-refresh (Ctrl+Shift+R) to see it.
+
 ---
 
 ## 4. How it fits together
@@ -186,7 +192,7 @@ It only reads job information. It never applies to jobs.
 - **"Open roles" vs "Tracked" on each stack tile:** *open roles* is LinkedIn's total count of matching jobs (the size of the market); *tracked* is how many individual postings we pull in detail and follow over time (the sample we re-check for applicant growth).
 - **The "Period" filter** (All / Latest / 7 / 30 / 90 days) only changes the **Competition** and **Raw Feed** job lists. The top tiles, Trend chart, Opportunities and Company Map are not affected. 30 and 90 days currently equal All because all data so far is under a month old.
 - **The ↻ live-refresh button** updates one job's applicant count against LinkedIn in that moment — use it on roles you care about. The rest of the numbers refresh with the nightly scrape.
-- **"Prime" (🔥) roles** are the ones to apply to first: fresh, few applicants, high-demand stack. They're listed in the "Prime Opportunities" panel near the top and flagged with a flame badge in the job lists. The set is only as fresh as the latest scrape, so it refreshes each night; some nights it may be short or empty if few roles qualify.
+- **"Prime" (🔥) roles** are the ones to apply to first: fresh, few applicants, high-demand stack. They're listed in the "Prime Opportunities" panel near the top and flagged with a flame badge in the job lists. The set is only as fresh as the latest scrape, so it refreshes each night. "High demand" is judged against that day's market (the median across stacks), so the panel stays populated even when LinkedIn's overall reported numbers dip.
 - **If the site won't load**, it's almost always a stale browser tab — hard-refresh with **Ctrl+Shift+R**. The server now pins its port and auto-restarts after a reboot, so genuine outages are far less likely.
 
 ---
