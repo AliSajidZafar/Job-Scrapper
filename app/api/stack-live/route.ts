@@ -9,7 +9,7 @@ import { STACKS, type ApiResult, type Stack, type StackLiveData, type StackLiveJ
 // first. Cached per stack for 10 minutes so repeat opens are instant and we
 // don't re-hit LinkedIn on every click.
 const TARGET = 20; // how many hot roles to show
-const MAX_CANDIDATES = 24; // how many live listings to price for applicants
+const MAX_CANDIDATES = 28; // live listings to price (extra headroom for de-duping repeats)
 const CONCURRENCY = 5; // parallel applicant-count fetches (kept modest to avoid 429)
 const TTL_MS = 600_000; // 10 minutes
 
@@ -59,7 +59,19 @@ async function compute(stack: Stack): Promise<StackLiveData> {
     return (b.posted ?? "").localeCompare(a.posted ?? "");
   });
 
-  const jobs = priced.slice(0, TARGET);
+  // 4. Collapse the same role listed under several job ids (LinkedIn reposts the
+  //    same title across cities) so the drawer shows DISTINCT roles, not the
+  //    same one five times. The sort above means we keep the hottest instance.
+  const distinct: StackLiveJob[] = [];
+  const seenRole = new Set<string>();
+  for (const j of priced) {
+    const key = `${j.title}|${j.company}`.toLowerCase().replace(/\s+/g, " ").trim();
+    if (seenRole.has(key)) continue;
+    seenRole.add(key);
+    distinct.push(j);
+  }
+
+  const jobs = distinct.slice(0, TARGET);
   return {
     stack,
     as_of: new Date().toISOString(),
