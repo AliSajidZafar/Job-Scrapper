@@ -1,20 +1,19 @@
 import { getSupabaseServer } from "@/lib/supabase";
+import { getSummary } from "@/lib/summary";
 import { fetchAllRows } from "@/lib/paginate";
 import { cached, CACHE_HEADERS } from "@/lib/cache";
-import { PRIME_MAX_APPLICANTS } from "@/lib/prime";
-import type { ApiResult, PrimeData, PrimeJob, Stack } from "@/lib/types";
+import { PRIME_MAX_APPLICANTS, rankPrimeStacks } from "@/lib/prime";
+import type { ApiResult, PrimeData, Stack } from "@/lib/types";
 
-// GET /api/prime — the hottest roles across all 20 stacks, hottest first:
-// FRESH (from the latest scrape), FEW applicants (<= 25), in a HIGH-DEMAND stack
-// (open roles >= the cross-stack median — an ADAPTIVE threshold so the panel
-// tracks the market instead of blanking out on days when LinkedIn's reported
-// totals dip below a fixed cutoff). Velocity, when known, lifts a job up.
+// GET /api/prime: the Prime Opportunities panel. The top 10 of the tracked
+// stacks ranked by opportunity score (open roles ÷ avg applicants, see
+// lib/prime.ts), plus the ids of the fresh, <= 25-applicant jobs in those
+// stacks so every job list can badge them as Prime.
 const LATEST_RUN_HOURS = 6;
-const MAX_PRIME = 20;
 
 export async function GET() {
   const supabase = getSupabaseServer();
-  const empty: PrimeData = { as_of: null, jobs: [] };
+  const empty: PrimeData = { as_of: null, stacks: [], job_ids: [] };
   if (!supabase) {
     return Response.json({ configured: false, data: empty } satisfies ApiResult<PrimeData>);
   }
@@ -32,27 +31,12 @@ export async function GET() {
 }
 
 async function compute(supabase: NonNullable<ReturnType<typeof getSupabaseServer>>): Promise<PrimeData> {
-  const empty: PrimeData = { as_of: null, jobs: [] };
-
-  // 1. Current demand per stack = latest open-roles total, and the high-demand set.
-  const { data: dem } = await supabase
-    .from("stack_demand")
-    .select("stack, total_results, day")
-    .order("day", { ascending: false });
-  const demandBy = new Map<Stack, number>();
-  for (const d of (dem ?? []) as { stack: Stack; total_results: number | null }[]) {
-    if (d.total_results != null && !demandBy.has(d.stack)) demandBy.set(d.stack, d.total_results);
-  }
-
-  // "High demand" is RELATIVE to the current market: a stack qualifies when its
-  // latest open-roles total is at or above the median across all stacks. This
-  // adapts as LinkedIn's reported totals rise and fall together, so the panel
-  // keeps surfacing the hottest roles instead of going blank when every stack's
-  // numbers happen to dip below a fixed number on a given day.
-  const demandValues = [...demandBy.values()].sort((a, b) => a - b);
-  const minStackDemand = demandValues.length
-    ? demandValues[Math.floor((demandValues.length - 1) / 2)]
-    : 0;
+  // 1. Rank the stacks from the same numbers the "Demand by stack" tiles show
+  //    (the shared "summary" cache entry), so the panel and the tiles agree.
+  const summary = await cached("summary", 300_000, () => getSummary(supabase));
+  const stacks = rankPrimeStacks(summary.stacks);
+  if (!stacks.length) return { as_of: null, stacks, job_ids: [] };
+  const top = new Set<Stack>(stacks.map((s) => s.stack));
 
   // 2. The latest scrape run (jobs seen within LATEST_RUN_HOURS of the newest snapshot).
   const { data: newest } = await supabase
@@ -61,92 +45,27 @@ async function compute(supabase: NonNullable<ReturnType<typeof getSupabaseServer
     .order("observed_at", { ascending: false })
     .limit(1)
     .maybeSingle();
-  if (!newest) return empty;
+  if (!newest) return { as_of: null, stacks, job_ids: [] };
   const asOf = newest.observed_at as string;
   const since = new Date(Date.parse(asOf) - LATEST_RUN_HOURS * 3_600_000).toISOString();
 
-  // 3. Fresh, low-competition jobs from that run, with their stacks.
-  type Row = {
-    id: string;
-    linkedin_job_id: string;
-    title: string;
-    company: string;
-    location: string | null;
-    applicant_count: number | null;
-    job_stacks: { stack: Stack }[];
-  };
+  // 3. Fresh, low-competition jobs from that run that belong to a Prime stack.
+  type Row = { id: string; linkedin_job_id: string; job_stacks: { stack: Stack }[] };
   const rows = await fetchAllRows<Row>(
     (from, to) =>
       supabase
         .from("jobs")
-        .select("id, linkedin_job_id, title, company, location, applicant_count, job_stacks(stack), job_snapshots!inner(observed_at)")
+        .select("id, linkedin_job_id, job_stacks(stack), job_snapshots!inner(observed_at)")
         .gte("job_snapshots.observed_at", since)
         .not("applicant_count", "is", null)
         .lte("applicant_count", PRIME_MAX_APPLICANTS)
         .order("id")
         .range(from, to) as unknown as PromiseLike<{ data: Row[] | null; error: { message: string } | null }>,
   );
-  if (!rows.length) return empty;
-
-  // 4. Velocity (bonus signal) for whichever of these jobs have one.
-  const velBy = new Map<string, number>();
-  const ids = rows.map((r) => r.linkedin_job_id);
-  for (let i = 0; i < ids.length; i += 200) {
-    const { data: vel } = await supabase
-      .from("job_applicant_velocity")
-      .select("linkedin_job_id, applicants_per_hour")
-      .in("linkedin_job_id", ids.slice(i, i + 200))
-      .gt("applicants_per_hour", 0);
-    for (const v of (vel ?? []) as { linkedin_job_id: string; applicants_per_hour: number | null }[]) {
-      if (v.applicants_per_hour != null) velBy.set(v.linkedin_job_id, v.applicants_per_hour);
-    }
+  const ids = new Set<string>();
+  for (const r of rows) {
+    if ((r.job_stacks ?? []).some((s) => top.has(s.stack))) ids.add(r.linkedin_job_id);
   }
 
-  // 5. Keep only jobs whose best stack is high-demand; rank hottest first.
-  const dedup = new Map<string, Row>();
-  for (const r of rows) if (!dedup.has(r.linkedin_job_id)) dedup.set(r.linkedin_job_id, r);
-
-  const jobs: PrimeJob[] = [];
-  for (const r of dedup.values()) {
-    const openRoles = Math.max(0, ...(r.job_stacks ?? []).map((s) => demandBy.get(s.stack) ?? 0));
-    if (openRoles < minStackDemand) continue;
-    jobs.push({
-      id: r.id,
-      linkedin_job_id: r.linkedin_job_id,
-      title: r.title,
-      company: r.company,
-      location: r.location,
-      stacks: (r.job_stacks ?? []).map((s) => s.stack),
-      applicant_count: r.applicant_count as number,
-      open_roles: openRoles,
-      applicants_per_hour: velBy.get(r.linkedin_job_id) ?? null,
-    });
-  }
-
-  // Hottest first: a velocity reading wins, then market demand, then fewest applicants.
-  jobs.sort((a, b) => {
-    const av = a.applicants_per_hour ?? -1;
-    const bv = b.applicants_per_hour ?? -1;
-    if ((bv > 0) !== (av > 0)) return bv > 0 ? 1 : -1;
-    if (bv !== av && (av > 0 || bv > 0)) return bv - av;
-    if (b.open_roles !== a.open_roles) return b.open_roles - a.open_roles;
-    return a.applicant_count - b.applicant_count;
-  });
-
-  // Spread across stacks (at most PER_STACK each) so the panel spans the market
-  // rather than filling with one stack's listings. 3 across the ~10 high-demand
-  // stacks leaves plenty of headroom to fill all MAX_PRIME slots.
-  const PER_STACK = 3;
-  const takenByStack = new Map<Stack, number>();
-  const picked: PrimeJob[] = [];
-  for (const j of jobs) {
-    if (picked.length >= MAX_PRIME) break;
-    const bucket = j.stacks.reduce((best, s) => ((demandBy.get(s) ?? 0) > (demandBy.get(best) ?? 0) ? s : best), j.stacks[0]);
-    const n = takenByStack.get(bucket) ?? 0;
-    if (n >= PER_STACK) continue;
-    takenByStack.set(bucket, n + 1);
-    picked.push(j);
-  }
-
-  return { as_of: asOf, jobs: picked };
+  return { as_of: asOf, stacks, job_ids: [...ids] };
 }
