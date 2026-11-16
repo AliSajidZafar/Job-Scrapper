@@ -193,7 +193,11 @@ function LiveRow({ job, rank }: { job: StackLiveJob; rank: number }) {
           {state === "done" && (
             <span className="text-[10px] font-medium text-good">✓ {liveText ?? "live"} · matches LinkedIn now</span>
           )}
-          {state === "error" && <span className="text-[10px] font-medium text-crit">couldn&apos;t refresh</span>}
+          {state === "error" && (
+            <span className="text-[10px] font-medium text-warn">
+              {count != null ? "LinkedIn busy · showing last live count" : "LinkedIn busy · tap ↻ to retry"}
+            </span>
+          )}
         </div>
       </div>
       <div className="shrink-0 text-right">

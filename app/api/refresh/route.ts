@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
 import { getSupabaseServer } from "@/lib/supabase";
-import { fetchLiveApplicants } from "@/lib/linkedin";
+import { fetchLiveApplicants, delay } from "@/lib/linkedin";
 import { clearCache } from "@/lib/cache";
 import type { ApiResult, RefreshResult } from "@/lib/types";
 
@@ -21,15 +21,28 @@ export async function GET(req: NextRequest) {
     );
   }
 
-  let live: { count: number | null; text: string | null };
-  try {
-    live = await fetchLiveApplicants(id);
-  } catch (e) {
+  // Read the live count, retrying on a transient failure (LinkedIn rate-limits
+  // the data-center IP with a 429 when several refreshes land close together).
+  // A few spaced attempts turn most of those "couldn't refresh" misses into a
+  // real figure.
+  let live: { count: number | null; text: string | null } | null = null;
+  let lastErr: unknown = null;
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      live = await fetchLiveApplicants(id);
+      lastErr = null;
+      break;
+    } catch (e) {
+      lastErr = e;
+      if (attempt < 2) await delay(600 + attempt * 900 + Math.random() * 400);
+    }
+  }
+  if (!live) {
     return Response.json(
       {
         configured: true,
         data: null,
-        error: e instanceof Error ? e.message : "Couldn't reach LinkedIn",
+        error: lastErr instanceof Error ? lastErr.message : "Couldn't reach LinkedIn",
       } satisfies ApiResult<RefreshResult | null>,
       { status: 502 },
     );
