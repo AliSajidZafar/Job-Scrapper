@@ -36,7 +36,14 @@ export async function GET(req: Request) {
 
 async function compute(stack: Stack): Promise<StackLiveData> {
   // 1. Freshest live listings for this stack (up to MAX_CANDIDATES).
-  const listings = (await fetchStackListings(STACK_QUERY[stack], 3)).slice(0, MAX_CANDIDATES);
+  const { listings: raw, rateLimited } = await fetchStackListings(STACK_QUERY[stack], 3);
+  const listings = raw.slice(0, MAX_CANDIDATES);
+  if (!listings.length) {
+    // A transient 429 must NOT be cached as "empty" for 10 minutes — throw so
+    // the caller gets a retryable error. A genuinely empty result caches fine.
+    if (rateLimited) throw new Error("LinkedIn is busy right now — please try again in a moment.");
+    return { stack, as_of: new Date().toISOString(), jobs: [], scanned: 0, partial: true };
+  }
 
   // 2. Price each one with its live applicant count, a few in parallel. A small
   //    random jitter spreads the detail fetches so they don't burst together

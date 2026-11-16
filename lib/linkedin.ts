@@ -153,22 +153,40 @@ async function fetchListingPage(query: string, start: number): Promise<{ html: s
   }
 }
 
+export interface ListingResult {
+  listings: LiveListing[];
+  rateLimited: boolean; // true when a 429 (not an empty result) cut the pull short
+}
+
 // Fetch up to `pages` pages of fresh guest listings for a stack's keywords,
 // filtered to US · remote · contract+full-time · posted in the last 24h, newest
 // first — the same filters as the nightly scraper. Deduped by job id. Paces the
-// requests (a short gap between pages, one back-off retry on a 429) because
-// LinkedIn's guest search rate-limits rapid bursts; stops on an empty page.
-export async function fetchStackListings(query: string, pages = 3): Promise<LiveListing[]> {
+// requests (a gap between pages, back-off retries on a 429) because LinkedIn's
+// guest search rate-limits rapid bursts; stops on an empty page. Reports whether
+// a 429 — rather than a genuinely empty result — is why it returned little, so
+// the caller can retry instead of caching an empty list.
+export async function fetchStackListings(query: string, pages = 3): Promise<ListingResult> {
   const seen = new Set<string>();
   const all: LiveListing[] = [];
+  let rateLimited = false;
+
   for (let p = 0; p < pages; p++) {
     if (p > 0) await delay(500); // gentle pacing between pages
-    let { html, rateLimited } = await fetchListingPage(query, p * 10);
-    if (rateLimited) {
+    let { html, rateLimited: rl } = await fetchListingPage(query, p * 10);
+    if (rl) {
       await delay(1_500); // backed off, try this page once more
-      ({ html, rateLimited } = await fetchListingPage(query, p * 10));
+      ({ html, rateLimited: rl } = await fetchListingPage(query, p * 10));
     }
-    if (!html) break; // rate-limited again, or a hard failure — keep what we have
+    // Page 0 is essential (nothing to show without it) — give it one more,
+    // longer back-off before giving up.
+    if (rl && p === 0) {
+      await delay(3_000);
+      ({ html, rateLimited: rl } = await fetchListingPage(query, p * 10));
+    }
+    if (!html) {
+      if (rl) rateLimited = true;
+      break; // rate-limited again, or a hard failure — keep what we have
+    }
     const got = parseListings(html);
     if (!got.length) break;
     for (const g of got) {
@@ -178,5 +196,5 @@ export async function fetchStackListings(query: string, pages = 3): Promise<Live
       }
     }
   }
-  return all;
+  return { listings: all, rateLimited };
 }
