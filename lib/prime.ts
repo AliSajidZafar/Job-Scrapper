@@ -7,10 +7,12 @@
 // Thresholds grounded in the live data:
 //  - <= 25 applicants is LinkedIn's "be among the first 25 applicants" band — the
 //    genuinely low-competition, early-window roles (finer counts aren't exposed).
-//  - stack open-roles median across the 20 stacks is ~5,000; "high demand" means
-//    at or above that, i.e. the top half of stacks by current market size.
+//  - "high demand" means a stack at or above the MEDIAN open-roles total across
+//    the 20 stacks — i.e. the top half of stacks by current market size. That
+//    median is computed live per request in app/api/prime (not a fixed number),
+//    so the bar rises and falls with the market and the panel never blanks out
+//    on a day when LinkedIn's reported totals all dip.
 export const PRIME_MAX_APPLICANTS = 25;
-export const PRIME_MIN_STACK_DEMAND = 5000;
 
 // The per-job list is curated server-side (see app/api/prime). Everywhere a job
 // is shown, it's marked Prime by membership in that set, so the inline badge and

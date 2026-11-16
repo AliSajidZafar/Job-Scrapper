@@ -1,12 +1,14 @@
 import { getSupabaseServer } from "@/lib/supabase";
 import { fetchAllRows } from "@/lib/paginate";
 import { cached, CACHE_HEADERS } from "@/lib/cache";
-import { PRIME_MAX_APPLICANTS, PRIME_MIN_STACK_DEMAND } from "@/lib/prime";
+import { PRIME_MAX_APPLICANTS } from "@/lib/prime";
 import type { ApiResult, PrimeData, PrimeJob, Stack } from "@/lib/types";
 
 // GET /api/prime — the hottest roles across all 20 stacks, hottest first:
 // FRESH (from the latest scrape), FEW applicants (<= 25), in a HIGH-DEMAND stack
-// (open roles >= the cross-stack median). Velocity, when known, lifts a job up.
+// (open roles >= the cross-stack median — an ADAPTIVE threshold so the panel
+// tracks the market instead of blanking out on days when LinkedIn's reported
+// totals dip below a fixed cutoff). Velocity, when known, lifts a job up.
 const LATEST_RUN_HOURS = 6;
 const MAX_PRIME = 20;
 
@@ -41,6 +43,16 @@ async function compute(supabase: NonNullable<ReturnType<typeof getSupabaseServer
   for (const d of (dem ?? []) as { stack: Stack; total_results: number | null }[]) {
     if (d.total_results != null && !demandBy.has(d.stack)) demandBy.set(d.stack, d.total_results);
   }
+
+  // "High demand" is RELATIVE to the current market: a stack qualifies when its
+  // latest open-roles total is at or above the median across all stacks. This
+  // adapts as LinkedIn's reported totals rise and fall together, so the panel
+  // keeps surfacing the hottest roles instead of going blank when every stack's
+  // numbers happen to dip below a fixed number on a given day.
+  const demandValues = [...demandBy.values()].sort((a, b) => a - b);
+  const minStackDemand = demandValues.length
+    ? demandValues[Math.floor((demandValues.length - 1) / 2)]
+    : 0;
 
   // 2. The latest scrape run (jobs seen within LATEST_RUN_HOURS of the newest snapshot).
   const { data: newest } = await supabase
@@ -97,7 +109,7 @@ async function compute(supabase: NonNullable<ReturnType<typeof getSupabaseServer
   const jobs: PrimeJob[] = [];
   for (const r of dedup.values()) {
     const openRoles = Math.max(0, ...(r.job_stacks ?? []).map((s) => demandBy.get(s.stack) ?? 0));
-    if (openRoles < PRIME_MIN_STACK_DEMAND) continue;
+    if (openRoles < minStackDemand) continue;
     jobs.push({
       id: r.id,
       linkedin_job_id: r.linkedin_job_id,
