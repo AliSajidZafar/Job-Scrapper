@@ -49,14 +49,9 @@ export function PrimePanel({ count, children }: { count?: number; children: Reac
       className="overflow-hidden rounded-2xl border border-prime/30 bg-gradient-to-br from-prime-soft/70 to-card"
     >
       <div className="flex flex-wrap items-center justify-between gap-2 border-b border-prime/20 px-5 py-3.5">
-        <div className="flex items-center gap-2.5">
-          <span className="grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-prime text-prime-ink">
-            <Flame className="h-4 w-4" />
-          </span>
-          <h2 id="prime-heading" className="text-sm font-semibold tracking-tight text-ink">
-            Prime Opportunities
-          </h2>
-        </div>
+        <h2 id="prime-heading" className="text-sm font-semibold tracking-tight text-ink">
+          Prime Opportunities
+        </h2>
         {count != null && (
           <span className="rounded-full border border-prime/40 bg-prime-soft px-2 py-0.5 text-xs font-semibold tabular-nums text-prime">
             Top {count} of {STACKS.length} stacks
