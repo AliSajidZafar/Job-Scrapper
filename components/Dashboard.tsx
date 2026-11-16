@@ -337,20 +337,7 @@ function SummarySection({
       )}
 
       <div>
-        <div className="mb-3">
-          {/* desktop: the total-open-roles caption sits above, right-aligned */}
-          <div className="mb-1 hidden text-right text-xs text-muted sm:block">
-            Total open roles on LinkedIn · last {totalByDay.length || "—"} days
-          </div>
-          <div className="flex flex-col gap-0.5 sm:flex-row sm:items-baseline sm:justify-between sm:gap-3">
-            <h2 className="text-sm font-semibold uppercase tracking-wide text-muted">Demand by stack</h2>
-            <span className="hidden text-xs text-muted sm:inline">Select a stack for the full breakdown</span>
-            {/* mobile: one compact caption under the heading */}
-            <span className="text-xs text-muted sm:hidden">
-              Total open roles · last {totalByDay.length || "—"} days · open a tile for details
-            </span>
-          </div>
-        </div>
+        <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-muted">Demand by stack</h2>
         {summary && <MoversStrip stacks={summary.stacks} />}
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
           {loading || !summary

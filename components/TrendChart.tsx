@@ -195,8 +195,9 @@ export function TrendChart({ points, visible = [] }: { points: TrendPoint[]; vis
         </div>
       )}
 
-      {/* clickable legend — click a series to focus it (and reveal its fill) */}
-      <div className="mt-3 flex flex-wrap items-center gap-x-1.5 gap-y-1.5">
+      {/* clickable legend — click a series to focus it (and reveal its fill).
+          Same grid as the filter bar's stack pills: 10 per row on desktop. */}
+      <div className="mt-3 grid grid-cols-3 justify-items-start gap-1.5 min-[480px]:grid-cols-5 sm:grid-cols-10">
         {base.map((s) => {
           const isFocused = focus === s;
           const dimmed = focus != null && !isFocused;
@@ -207,7 +208,7 @@ export function TrendChart({ points, visible = [] }: { points: TrendPoint[]; vis
               onClick={() => toggle(s)}
               aria-pressed={isFocused}
               title={isFocused ? `Show all stacks` : `Focus ${STACK_SHORT[s]}`}
-              className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium transition-all ${
+              className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium transition-all ${
                 isFocused
                   ? "border-brand bg-brand-soft text-ink"
                   : dimmed
@@ -216,18 +217,13 @@ export function TrendChart({ points, visible = [] }: { points: TrendPoint[]; vis
               }`}
             >
               <span
-                className="h-2.5 w-2.5 rounded-full"
+                className="h-2 w-2 shrink-0 rounded-full"
                 style={{ background: `var(${STACK_COLOR_VAR[s]})`, opacity: dimmed ? 0.45 : 1 }}
               />
               {STACK_SHORT[s]}
             </button>
           );
         })}
-        {base.length > 1 && (
-          <span className="ml-1 text-[11px] text-muted">
-            {focus ? "· showing one — click it again for all" : "· click a stack to focus"}
-          </span>
-        )}
       </div>
 
       {days.length < 2 && (
