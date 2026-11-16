@@ -2,7 +2,6 @@
 
 import { createContext, useContext } from "react";
 import { STACK_COLOR_VAR, STACK_SHORT, type PrimeData, type PrimeJob } from "@/lib/types";
-import { applicantLabel } from "@/lib/applicants";
 
 // One source of truth: the set of LinkedIn job ids that are Prime right now
 // (from /api/prime). Any job shown anywhere is badged by membership here, so the
@@ -101,7 +100,7 @@ function PrimeRow({ job }: { job: PrimeJob }) {
             </span>
           ))}
           <span className="inline-flex items-center gap-1 rounded-full bg-plane px-1.5 py-px text-[10px] font-medium tabular-nums text-ink">
-            ≤{applicantLabel(job.applicant_count)} applicants
+            ≤{job.applicant_count.toLocaleString()} applicants
           </span>
           <span
             className="inline-flex items-center gap-1 rounded-full bg-prime-soft px-1.5 py-px text-[10px] font-semibold tabular-nums text-prime"
