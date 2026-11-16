@@ -158,6 +158,17 @@ function LiveRow({ job, rank }: { job: StackLiveJob; rank: number }) {
     }
   };
 
+  // Safety net: if this role arrived without a live count (its detail fetch was
+  // rate-limited server-side), fill it in automatically on open — staggered so
+  // the rows don't all hit LinkedIn at once — so every row shows LinkedIn's real
+  // number without the user having to click refresh.
+  useEffect(() => {
+    if (job.applicant_count != null) return;
+    const t = setTimeout(refresh, Math.random() * 2500);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   return (
     <li className="flex items-center gap-3 bg-card px-4 py-3 transition-colors hover:bg-brand-soft/40">
       <span className="w-5 shrink-0 text-center text-xs font-semibold tabular-nums text-muted">{rank}</span>

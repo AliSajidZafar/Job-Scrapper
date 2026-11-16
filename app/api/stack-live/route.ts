@@ -9,8 +9,8 @@ import { STACKS, type ApiResult, type Stack, type StackLiveData, type StackLiveJ
 // first. Cached per stack for 10 minutes so repeat opens are instant and we
 // don't re-hit LinkedIn on every click.
 const TARGET = 20; // how many hot roles to show
-const MAX_CANDIDATES = 28; // live listings to price (extra headroom for de-duping repeats)
-const CONCURRENCY = 5; // parallel applicant-count fetches (kept modest to avoid 429)
+const MAX_CANDIDATES = 24; // DISTINCT listings to price for applicants
+const CONCURRENCY = 4; // parallel applicant-count fetches (kept modest to avoid 429)
 const TTL_MS = 600_000; // 10 minutes
 
 export async function GET(req: Request) {
@@ -35,30 +35,38 @@ export async function GET(req: Request) {
 }
 
 async function compute(stack: Stack): Promise<StackLiveData> {
-  // 1. Freshest live listings for this stack (up to MAX_CANDIDATES).
+  // 1. Freshest live listings for this stack.
   const { listings: raw, rateLimited } = await fetchStackListings(STACK_QUERY[stack], 3);
-  const listings = raw.slice(0, MAX_CANDIDATES);
-  if (!listings.length) {
+  if (!raw.length) {
     // A transient 429 must NOT be cached as "empty" for 10 minutes — throw so
     // the caller gets a retryable error. A genuinely empty result caches fine.
     if (rateLimited) throw new Error("LinkedIn is busy right now — please try again in a moment.");
     return { stack, as_of: new Date().toISOString(), jobs: [], scanned: 0, partial: true };
   }
 
-  // 2. Price each one with its live applicant count, a few in parallel. A small
-  //    random jitter spreads the detail fetches so they don't burst together
-  //    (which LinkedIn rate-limits).
-  const priced = await mapPool(listings, CONCURRENCY, async (l): Promise<StackLiveJob> => {
-    try {
-      await delay(Math.random() * 250);
-      const { count, text } = await fetchLiveApplicants(l.linkedin_job_id);
-      return { ...l, applicant_count: count, applicant_text: text };
-    } catch {
-      return { ...l, applicant_count: null, applicant_text: null };
-    }
+  // 2. Collapse the same role listed under several job ids (LinkedIn reposts the
+  //    same title across cities) BEFORE pricing — so we don't spend an applicant
+  //    fetch (and a slice of the rate-limit budget) on five copies of one role.
+  //    Listings are newest-first, so the kept copy is the freshest.
+  const distinct: typeof raw = [];
+  const seenRole = new Set<string>();
+  for (const l of raw) {
+    const key = `${l.title}|${l.company}`.toLowerCase().replace(/\s+/g, " ").trim();
+    if (seenRole.has(key)) continue;
+    seenRole.add(key);
+    distinct.push(l);
+  }
+  const candidates = distinct.slice(0, MAX_CANDIDATES);
+
+  // 3. Price each distinct role with its live applicant count, a few in parallel
+  //    with a retry so nearly every row gets LinkedIn's real figure (not a "—").
+  const priced = await mapPool(candidates, CONCURRENCY, async (l): Promise<StackLiveJob> => {
+    await delay(Math.random() * 250); // spread the burst a little
+    const { count, text } = await fetchApplicantsResilient(l.linkedin_job_id);
+    return { ...l, applicant_count: count, applicant_text: text };
   });
 
-  // 3. Hottest first: fewest applicants, unknown counts last; newer breaks ties.
+  // 4. Hottest first: fewest applicants, unknown counts last; newer breaks ties.
   priced.sort((a, b) => {
     const av = a.applicant_count ?? Number.POSITIVE_INFINITY;
     const bv = b.applicant_count ?? Number.POSITIVE_INFINITY;
@@ -66,26 +74,27 @@ async function compute(stack: Stack): Promise<StackLiveData> {
     return (b.posted ?? "").localeCompare(a.posted ?? "");
   });
 
-  // 4. Collapse the same role listed under several job ids (LinkedIn reposts the
-  //    same title across cities) so the drawer shows DISTINCT roles, not the
-  //    same one five times. The sort above means we keep the hottest instance.
-  const distinct: StackLiveJob[] = [];
-  const seenRole = new Set<string>();
-  for (const j of priced) {
-    const key = `${j.title}|${j.company}`.toLowerCase().replace(/\s+/g, " ").trim();
-    if (seenRole.has(key)) continue;
-    seenRole.add(key);
-    distinct.push(j);
-  }
-
-  const jobs = distinct.slice(0, TARGET);
+  const jobs = priced.slice(0, TARGET);
   return {
     stack,
     as_of: new Date().toISOString(),
     jobs,
-    scanned: listings.length,
+    scanned: candidates.length,
     partial: jobs.length < TARGET,
   };
+}
+
+// One applicant-count read, with a single back-off retry on failure/429, so a
+// transient rate-limit doesn't leave a row without LinkedIn's real figure.
+async function fetchApplicantsResilient(id: string): Promise<{ count: number | null; text: string | null }> {
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try {
+      return await fetchLiveApplicants(id);
+    } catch {
+      if (attempt === 0) await delay(700 + Math.random() * 500);
+    }
+  }
+  return { count: null, text: null };
 }
 
 // Run `fn` over `items` with at most `limit` in flight at once, preserving order.
