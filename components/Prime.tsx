@@ -53,15 +53,9 @@ export function PrimePanel({ count, children }: { count?: number; children: Reac
           <span className="grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-prime text-prime-ink">
             <Flame className="h-4 w-4" />
           </span>
-          <div>
-            <h2 id="prime-heading" className="text-sm font-semibold tracking-tight text-ink">
-              Prime Opportunities
-            </h2>
-            <p className="text-xs text-muted">
-              The stacks with the most open roles for the fewest applicants, ranked by opportunity score (open
-              roles ÷ avg applicants). Select one for its hottest roles, pulled live from LinkedIn.
-            </p>
-          </div>
+          <h2 id="prime-heading" className="text-sm font-semibold tracking-tight text-ink">
+            Prime Opportunities
+          </h2>
         </div>
         {count != null && (
           <span className="rounded-full border border-prime/40 bg-prime-soft px-2 py-0.5 text-xs font-semibold tabular-nums text-prime">
