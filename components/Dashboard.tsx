@@ -24,6 +24,7 @@ import { Sparkline } from "./Sparkline";
 import { StackDetail } from "./StackDetail";
 import { CompanyDetail } from "./CompanyDetail";
 import { PrimePanel, PrimeBadge, PrimeProvider, usePrimeIds } from "./Prime";
+import { PRIME_TOP_N, formatScore } from "@/lib/prime";
 import { Logo } from "./Logo";
 import { ThemeToggle } from "./ThemeToggle";
 
@@ -142,10 +143,7 @@ export function Dashboard({ user }: { user: SessionUser | null }) {
     };
   }, [filters]);
 
-  const primeIds = useMemo(
-    () => new Set((prime?.jobs ?? []).map((j) => j.linkedin_job_id)),
-    [prime],
-  );
+  const primeIds = useMemo(() => new Set(prime?.job_ids ?? []), [prime]);
 
   return (
     <PrimeProvider ids={primeIds}>
@@ -303,14 +301,37 @@ function SummarySection({
   // Per-stack open-roles history (oldest → newest) for the tile sparklines,
   // plus a whole-market total per day for the headline sparkline.
   const { byStack, totalByDay } = buildHistories(trend);
-  // The stack whose drill-down drawer is open.
+  // The stack whose drill-down drawer is open (from a Prime card or a stack tile).
   const [selected, setSelected] = useState<Stack | null>(null);
+  const primeStacks = prime?.stacks ?? [];
 
   return (
     <section className="space-y-6">
       <KpiBand summary={summary} totalByDay={totalByDay} loading={loading} />
 
-      <PrimePanel data={prime} loading={loading} />
+      {/* Prime Opportunities: the top stacks by opportunity score, rank 1 first.
+          Same tile as "Demand by stack" below, in its red-bordered Prime variant. */}
+      {loading ? (
+        <PrimePanel>
+          {Array.from({ length: PRIME_TOP_N }, (_, i) => (
+            <TileSkeleton key={i} />
+          ))}
+        </PrimePanel>
+      ) : (
+        primeStacks.length > 0 && (
+          <PrimePanel count={primeStacks.length}>
+            {primeStacks.map((p) => (
+              <StackTile
+                key={p.stack}
+                s={p}
+                history={byStack.get(p.stack) ?? []}
+                onSelect={setSelected}
+                prime={p}
+              />
+            ))}
+          </PrimePanel>
+        )
+      )}
 
       <div>
         <div className="mb-3">
@@ -557,15 +578,32 @@ function Delta({ pct, suffix }: { pct: number | null; suffix?: string }) {
   );
 }
 
-function StackTile({ s, history, onSelect }: { s: StackSummary; history: number[]; onSelect: (stack: Stack) => void }) {
+// One stack's card. `prime` switches it to the Prime Opportunities variant: a red
+// (prime) border, its rank in place of the "max" chip, and its opportunity score
+// in place of the tracked count.
+function StackTile({
+  s,
+  history,
+  onSelect,
+  prime,
+}: {
+  s: StackSummary;
+  history: number[];
+  onSelect: (stack: Stack) => void;
+  prime?: { rank: number; score: number };
+}) {
   const noData = s.open_roles == null && s.captured === 0;
   const color = `var(${STACK_COLOR_VAR[s.stack]})`;
   return (
     <button
       type="button"
       onClick={() => onSelect(s.stack)}
-      aria-label={`View ${s.stack} details`}
-      className="group relative w-full overflow-hidden rounded-xl border border-line bg-card p-3 text-left transition-all hover:-translate-y-0.5 hover:border-brand/60 hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/50 sm:p-4"
+      aria-label={prime ? `#${prime.rank} ${s.stack}: view details` : `View ${s.stack} details`}
+      className={`group relative w-full overflow-hidden rounded-xl bg-card p-3 text-left transition-all hover:-translate-y-0.5 hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 sm:p-4 ${
+        prime
+          ? "border-2 border-prime/70 hover:border-prime focus-visible:ring-prime/50"
+          : "border border-line hover:border-brand/60 focus-visible:ring-brand/50"
+      }`}
     >
       <div className="flex items-center justify-between gap-1.5">
         <span className="inline-flex min-w-0 items-center gap-1.5 text-sm font-medium text-ink">
@@ -578,7 +616,14 @@ function StackTile({ s, history, onSelect }: { s: StackSummary; history: number[
             <path d="m9 18 6-6-6-6" />
           </svg>
         </span>
-        {noData ? (
+        {prime ? (
+          <span
+            className="shrink-0 rounded-full bg-prime px-2 py-0.5 text-[11px] font-bold tabular-nums text-prime-ink"
+            title={`Ranked #${prime.rank} of ${STACKS.length} stacks by opportunity score`}
+          >
+            #{prime.rank}
+          </span>
+        ) : noData ? (
           <span className="shrink-0 rounded-full border border-dashed border-line px-2 py-0.5 text-[11px] font-medium text-muted">
             Soon
           </span>
@@ -616,9 +661,19 @@ function StackTile({ s, history, onSelect }: { s: StackSummary; history: number[
         </div>
       )}
       <div className="mt-2.5 flex items-center justify-between border-t border-line pt-2 text-xs text-sub">
-        <span>
-          <span className="tabular-nums text-ink">{s.captured}</span> tracked
-        </span>
+        {prime ? (
+          <span
+            title={`Opportunity score = open roles ÷ avg applicants (${s.open_roles?.toLocaleString() ?? "—"} ÷ ${
+              s.avg_applicants ?? "—"
+            }). Higher means more jobs and less competition.`}
+          >
+            <span className="font-semibold tabular-nums text-prime">{formatScore(prime.score)}</span> score
+          </span>
+        ) : (
+          <span>
+            <span className="tabular-nums text-ink">{s.captured}</span> tracked
+          </span>
+        )}
         <span>
           <span className="tabular-nums text-ink">{s.avg_applicants ?? "—"}</span> avg applicants
         </span>
